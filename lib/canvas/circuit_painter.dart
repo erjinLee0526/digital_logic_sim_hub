@@ -24,8 +24,7 @@ Offset pinBranchOffset(String pinId, Offset pinPos, Circuit circuit) {
     }
   }
   const branchDistance = 25.0;
-  final dir =
-      (chip != null && pinPos.dx < chip.rect.center.dx) ? -1.0 : 1.0;
+  final dir = (chip != null && pinPos.dx < chip.rect.center.dx) ? -1.0 : 1.0;
   return Offset(pinPos.dx + dir * branchDistance, pinPos.dy);
 }
 
@@ -206,10 +205,8 @@ bool _segHitsChip(Offset a, Offset b, List<Rect> obstacleRects,
 ///
 /// All chips are treated as obstacles — no chip is skipped, because this
 /// function computes a path that goes *outside* the cluster of all chips.
-List<Offset> _routeAround(
-    Offset p1, Offset p2,
-    double dir1, double dir2, double exitMargin,
-    List<Rect> obstacleRects, List<String> chipIds) {
+List<Offset> _routeAround(Offset p1, Offset p2, double dir1, double dir2,
+    double exitMargin, List<Rect> obstacleRects, List<String> chipIds) {
   const cornerMargin = 15.0;
 
   final ex1 = p1.dx + dir1 * exitMargin;
@@ -241,14 +238,18 @@ List<Offset> _routeAround(
   if (!hasObstacle) {
     final mx = (ex1 + ex2) / 2;
     final candidate = <Offset>[
-      p1, Offset(ex1, p1.dy), Offset(mx, p1.dy),
-      Offset(mx, p2.dy), Offset(ex2, p2.dy), p2,
+      p1,
+      Offset(ex1, p1.dy),
+      Offset(mx, p1.dy),
+      Offset(mx, p2.dy),
+      Offset(ex2, p2.dy),
+      p2,
     ];
     // Verify every segment against every chip
     bool ok = true;
     for (int i = 0; ok && i < candidate.length - 1; i++) {
-      if (_segHitsChip(candidate[i], candidate[i + 1],
-          obstacleRects, chipIds, null)) {
+      if (_segHitsChip(
+          candidate[i], candidate[i + 1], obstacleRects, chipIds, null)) {
         ok = false;
       }
     }
@@ -265,8 +266,7 @@ List<Offset> _routeAround(
     }
   }
 
-  final goAbove =
-      (p1.dy - highestTop).abs() + (p2.dy - highestTop).abs() <
+  final goAbove = (p1.dy - highestTop).abs() + (p2.dy - highestTop).abs() <
       (p1.dy - lowestBottom).abs() + (p2.dy - lowestBottom).abs();
   final clearanceY =
       goAbove ? highestTop - cornerMargin : lowestBottom + cornerMargin;
@@ -301,10 +301,8 @@ List<Offset> _routeAround(
 /// Computes the orthogonal (Manhattan) path between two points, avoiding
 /// chip bodies.  This is the standalone routing function shared by the
 /// painter, hit‑test, and junction‑point computation.
-List<Offset> computeWireRoute(
-    Offset p1, Offset p2,
-    ChipInstance? chip1, ChipInstance? chip2,
-    List<ChipInstance> allChips,
+List<Offset> computeWireRoute(Offset p1, Offset p2, ChipInstance? chip1,
+    ChipInstance? chip2, List<ChipInstance> allChips,
     {Offset? overrideStart, Offset? overrideEnd}) {
   const exitMargin = 25.0;
 
@@ -369,8 +367,7 @@ List<Offset> computeWireRoute(
   final dir1 = exitDirection(start, chip1);
   final dir2 = exitDirection(end, chip2);
 
-  final candidates =
-      _candidateColumns(start, end, dir1, dir2, exitMargin);
+  final candidates = _candidateColumns(start, end, dir1, dir2, exitMargin);
 
   for (final midX in candidates) {
     final exit1X = (dir1 > 0)
@@ -395,7 +392,8 @@ List<Offset> computeWireRoute(
   }
 
   // ── Phase 2: route around obstacles via top/bottom ──────────────
-  return _routeAround(start, end, dir1, dir2, exitMargin, obstacleRects, chipIds);
+  return _routeAround(
+      start, end, dir1, dir2, exitMargin, obstacleRects, chipIds);
 }
 
 /// Returns the branch point for a pin that already has wires connected.
@@ -490,8 +488,7 @@ class CircuitPainter extends CustomPainter {
 
       final aChip = _chipForPinId(anchorWire.pinIdA);
       final bChip = _chipForPinId(anchorWire.pinIdB);
-      final anchorPath =
-          _computeOrthogonalPath(aPos, bPos, aChip, bChip);
+      final anchorPath = _computeOrthogonalPath(aPos, bPos, aChip, bChip);
       anchorVSegs[entry.key] = findVerticalSegment(anchorPath);
     }
 
@@ -603,8 +600,7 @@ class CircuitPainter extends CustomPainter {
   /// points where additional wires fan out from the anchor wire's corner.
   void _drawJunctionDots(Canvas canvas, Map<String, Offset> pinPositions,
       Map<String, List<Wire>> wiresForPin, Map<String, Offset> branchDots) {
-    final dotPaint = Paint()
-      ..style = PaintingStyle.fill;
+    final dotPaint = Paint()..style = PaintingStyle.fill;
 
     for (final entry in wiresForPin.entries) {
       if (entry.value.length < 2) continue;
@@ -633,15 +629,25 @@ class CircuitPainter extends CustomPainter {
 
       // Junction dot at the pin itself
       canvas.drawCircle(pos, 4.5, dotPaint);
-      canvas.drawCircle(pos, 4.5,
-          Paint()..color = AppTheme.canvasBg..style = PaintingStyle.stroke..strokeWidth = 1.0);
+      canvas.drawCircle(
+          pos,
+          4.5,
+          Paint()
+            ..color = AppTheme.canvasBg
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = 1.0);
 
       // Junction dot at the branch point (on the anchor's vertical segment)
       final bp = branchDots[pinId];
       if (bp != null) {
         canvas.drawCircle(bp, 4.5, dotPaint);
-        canvas.drawCircle(bp, 4.5,
-            Paint()..color = AppTheme.canvasBg..style = PaintingStyle.stroke..strokeWidth = 1.0);
+        canvas.drawCircle(
+            bp,
+            4.5,
+            Paint()
+              ..color = AppTheme.canvasBg
+              ..style = PaintingStyle.stroke
+              ..strokeWidth = 1.0);
       }
     }
   }
@@ -677,7 +683,8 @@ class CircuitPainter extends CustomPainter {
         final len =
             draw ? dashLength.clamp(0, metric.length - distance) : gapLength;
         if (draw) {
-          dest.addPath(metric.extractPath(distance, distance + len), Offset.zero);
+          dest.addPath(
+              metric.extractPath(distance, distance + len), Offset.zero);
         }
         distance += len;
         draw = !draw;
@@ -697,8 +704,7 @@ class CircuitPainter extends CustomPainter {
       ..color = AppTheme.chipBody
       ..style = PaintingStyle.fill;
     final borderPaint = Paint()
-      ..color =
-          isSelected ? AppTheme.chipBorderSelected : AppTheme.chipBorder
+      ..color = isSelected ? AppTheme.chipBorderSelected : AppTheme.chipBorder
       ..strokeWidth = isSelected ? 2.5 : 1.5
       ..style = PaintingStyle.stroke;
 
@@ -718,49 +724,152 @@ class CircuitPainter extends CustomPainter {
     );
     canvas.drawArc(notchRect, 3.14, 3.14, false, notchPaint);
 
-    // Model label (centered)
-    final modelPainter = TextPainter(
-      text: TextSpan(
-        text: chip.definition.model,
-        style: const TextStyle(
-          color: AppTheme.accent,
-          fontSize: 14,
+    if (chip.definition.model == 'INPUT') {
+      _drawInputSwitch(canvas, chip, rect);
+    } else if (chip.definition.model == 'LED') {
+      _drawLED(canvas, chip, rect);
+    } else {
+      // Model label (centered)
+      final modelPainter = TextPainter(
+        text: TextSpan(
+          text: chip.definition.model,
+          style: const TextStyle(
+            color: AppTheme.accent,
+            fontSize: 14,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        textDirection: ui.TextDirection.ltr,
+      );
+      modelPainter.layout();
+      modelPainter.paint(
+        canvas,
+        Offset(
+          rect.center.dx - modelPainter.width / 2,
+          rect.top + 22,
+        ),
+      );
+
+      // Description (below model, smaller)
+      final descPainter = TextPainter(
+        text: TextSpan(
+          text: chip.definition.description,
+          style: const TextStyle(
+            color: AppTheme.textSecondary,
+            fontSize: 9,
+          ),
+        ),
+        textDirection: ui.TextDirection.ltr,
+      );
+      descPainter.layout();
+      descPainter.paint(
+        canvas,
+        Offset(
+          rect.center.dx - descPainter.width / 2,
+          rect.top + 40,
+        ),
+      );
+    }
+
+    // Draw each pin
+    _drawPins(canvas, chip);
+  }
+
+  void _drawInputSwitch(Canvas canvas, ChipInstance chip, Rect rect) {
+    final output = chip.pinStates.values.firstWhere(
+      (p) => p.direction == PinDirection.output,
+      orElse: () => chip.pinStates.values.first,
+    );
+    final isHigh = output.value == SignalState.high;
+
+    // Component label
+    final labelPainter = TextPainter(
+      text: const TextSpan(
+        text: 'INPUT',
+        style: TextStyle(
+          color: AppTheme.textSecondary,
+          fontSize: 10,
           fontWeight: FontWeight.bold,
         ),
       ),
       textDirection: ui.TextDirection.ltr,
-    );
-    modelPainter.layout();
-    modelPainter.paint(
+    )..layout();
+    labelPainter.paint(
       canvas,
-      Offset(
-        rect.center.dx - modelPainter.width / 2,
-        rect.top + 22,
-      ),
+      Offset(rect.center.dx - labelPainter.width / 2, rect.top + 12),
     );
 
-    // Description (below model, smaller)
-    final descPainter = TextPainter(
-      text: TextSpan(
-        text: chip.definition.description,
-        style: const TextStyle(
+    // Switch track
+    final trackRect = Rect.fromCenter(
+      center: rect.center,
+      width: 42,
+      height: 16,
+    );
+    final trackPaint = Paint()
+      ..color = isHigh
+          ? AppTheme.signalHigh.withValues(alpha: 0.25)
+          : AppTheme.surfaceLight;
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(trackRect, const Radius.circular(8)),
+      trackPaint,
+    );
+
+    // Switch knob
+    final knobX = isHigh ? trackRect.right - 10 : trackRect.left + 10;
+    canvas.drawCircle(
+      Offset(knobX, rect.center.dy),
+      9,
+      Paint()..color = isHigh ? AppTheme.signalHigh : AppTheme.textSecondary,
+    );
+  }
+
+  void _drawLED(Canvas canvas, ChipInstance chip, Rect rect) {
+    final input = chip.pinStates.values.firstWhere(
+      (p) => p.direction == PinDirection.input,
+      orElse: () => chip.pinStates.values.first,
+    );
+    final isLit = input.value == SignalState.high;
+
+    // Component label
+    final labelPainter = TextPainter(
+      text: const TextSpan(
+        text: 'LED',
+        style: TextStyle(
           color: AppTheme.textSecondary,
-          fontSize: 9,
+          fontSize: 10,
+          fontWeight: FontWeight.bold,
         ),
       ),
       textDirection: ui.TextDirection.ltr,
-    );
-    descPainter.layout();
-    descPainter.paint(
+    )..layout();
+    labelPainter.paint(
       canvas,
-      Offset(
-        rect.center.dx - descPainter.width / 2,
-        rect.top + 40,
-      ),
+      Offset(rect.center.dx - labelPainter.width / 2, rect.top + 12),
     );
 
-    // Draw each pin
-    _drawPins(canvas, chip);
+    // Bulb glow
+    if (isLit) {
+      canvas.drawCircle(
+        rect.center,
+        22,
+        Paint()..color = AppTheme.signalHigh.withValues(alpha: 0.18),
+      );
+    }
+
+    // Bulb body
+    canvas.drawCircle(
+      rect.center,
+      14,
+      Paint()..color = isLit ? AppTheme.signalHigh : AppTheme.signalHighZ,
+    );
+    canvas.drawCircle(
+      rect.center,
+      14,
+      Paint()
+        ..color = AppTheme.chipBorder
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.5,
+    );
   }
 
   // ---- Pins ----
@@ -808,7 +917,7 @@ class CircuitPainter extends CustomPainter {
       );
 
       // Pin label (outside the chip)
-      final isLeft = pinNumber <= 7;
+      final isLeft = pos.dx < chip.rect.center.dx;
       final labelPainter = TextPainter(
         text: TextSpan(
           text: pinState.label,
@@ -821,9 +930,7 @@ class CircuitPainter extends CustomPainter {
         textDirection: ui.TextDirection.ltr,
       );
       labelPainter.layout();
-      final labelX = isLeft
-          ? pos.dx - 8 - labelPainter.width
-          : pos.dx + 8;
+      final labelX = isLeft ? pos.dx - 8 - labelPainter.width : pos.dx + 8;
       labelPainter.paint(
         canvas,
         Offset(labelX, pos.dy - labelPainter.height / 2),

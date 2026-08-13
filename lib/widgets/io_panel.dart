@@ -1,19 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/chip_instance.dart';
-import '../models/circuit.dart';
 import '../models/pin.dart';
 import '../models/signal_state.dart';
 import '../providers/circuit_provider.dart';
 import '../engine/simulation_engine.dart';
 import '../providers/simulation_provider.dart';
 import '../theme/dark_theme.dart';
-
-/// Special chip ID prefix for input switches.
-const switchChipPrefix = 'sw_';
-
-/// Special chip ID prefix for output LEDs.
-const ledChipPrefix = 'led_';
 
 /// Right panel showing input switches and output LEDs.
 class IOPanel extends ConsumerWidget {
@@ -25,12 +18,10 @@ class IOPanel extends ConsumerWidget {
     final engine = ref.watch(simulationEngineProvider);
 
     // Find switches and LEDs among the chips
-    final switches = circuit.chips
-        .where((c) => c.id.startsWith(switchChipPrefix))
-        .toList();
-    final leds = circuit.chips
-        .where((c) => c.id.startsWith(ledChipPrefix))
-        .toList();
+    final switches =
+        circuit.chips.where((c) => c.definition.model == 'INPUT').toList();
+    final leds =
+        circuit.chips.where((c) => c.definition.model == 'LED').toList();
 
     return Container(
       width: 220,
@@ -128,17 +119,22 @@ class IOPanel extends ConsumerWidget {
 
   void _addSwitch(WidgetRef ref) {
     final notifier = ref.read(circuitProvider.notifier);
-    // Create a switch as a special chip-like entity
-    // For now, we add an actual input pin as a marker
-    // In a fuller implementation, switches would be proper components
-    final id = '${switchChipPrefix}${DateTime.now().millisecondsSinceEpoch}';
-    // Use a simple approach: add as a special chip
-    notifier.addChip('74LS00', Offset(100, 100 + ref.read(circuitProvider).chips.length * 50.0));
+    final count = ref
+        .read(circuitProvider)
+        .chips
+        .where((c) => c.definition.model == 'INPUT')
+        .length;
+    notifier.addChip('INPUT', Offset(120, 140 + count * 100.0));
   }
 
   void _addLED(WidgetRef ref) {
     final notifier = ref.read(circuitProvider.notifier);
-    notifier.addChip('74LS00', Offset(800, 100 + ref.read(circuitProvider).chips.length * 50.0));
+    final count = ref
+        .read(circuitProvider)
+        .chips
+        .where((c) => c.definition.model == 'LED')
+        .length;
+    notifier.addChip('LED', Offset(720, 140 + count * 100.0));
   }
 }
 
@@ -188,12 +184,12 @@ class _SwitchWidget extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // Find the first input pin to use as switch output
-    final inputPin = chip.pinStates.values.firstWhere(
-      (p) => p.direction == PinDirection.input,
+    // A switch drives its output pin; use that pin as the controlled signal.
+    final switchPin = chip.pinStates.values.firstWhere(
+      (p) => p.direction == PinDirection.output,
       orElse: () => chip.pinStates.values.first,
     );
-    final pinId = chip.pinId(inputPin.number);
+    final pinId = chip.pinId(switchPin.number);
 
     return Card(
       margin: const EdgeInsets.only(bottom: 4),
@@ -205,7 +201,7 @@ class _SwitchWidget extends ConsumerWidget {
             Icon(
               Icons.toggle_on_outlined,
               size: 20,
-              color: inputPin.value == SignalState.high
+              color: switchPin.value == SignalState.high
                   ? AppTheme.signalHigh
                   : AppTheme.signalLow,
             ),
@@ -213,15 +209,15 @@ class _SwitchWidget extends ConsumerWidget {
             Expanded(
               child: Text(
                 chip.id,
-                style: const TextStyle(
-                    color: AppTheme.textPrimary, fontSize: 11),
+                style:
+                    const TextStyle(color: AppTheme.textPrimary, fontSize: 11),
               ),
             ),
             IconButton(
               onPressed: () {
                 final circuit = ref.read(circuitProvider);
                 engine.rebuild(circuit);
-                final newVal = inputPin.value == SignalState.high
+                final newVal = switchPin.value == SignalState.high
                     ? SignalState.low
                     : SignalState.high;
                 engine.injectSignal(pinId, newVal);
@@ -230,11 +226,11 @@ class _SwitchWidget extends ConsumerWidget {
                 ref.read(circuitProvider.notifier).forceUpdate();
               },
               icon: Icon(
-                inputPin.value == SignalState.high
+                switchPin.value == SignalState.high
                     ? Icons.toggle_on
                     : Icons.toggle_off,
                 size: 28,
-                color: inputPin.value == SignalState.high
+                color: switchPin.value == SignalState.high
                     ? AppTheme.signalHigh
                     : AppTheme.textSecondary,
               ),
@@ -255,11 +251,12 @@ class _LEDWidget extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // Find the first output pin to use as LED input
-    final outputPin = chip.pinStates.values.firstWhere(
-      (p) => p.direction == PinDirection.output,
+    // An LED observes its input pin.
+    final inputPin = chip.pinStates.values.firstWhere(
+      (p) => p.direction == PinDirection.input,
       orElse: () => chip.pinStates.values.first,
     );
+    final isLit = inputPin.value == SignalState.high;
 
     return Card(
       margin: const EdgeInsets.only(bottom: 4),
@@ -273,8 +270,8 @@ class _LEDWidget extends ConsumerWidget {
               height: 14,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: AppTheme.colorForSignal(outputPin.value),
-                boxShadow: outputPin.value == SignalState.high
+                color: isLit ? AppTheme.signalHigh : AppTheme.signalHighZ,
+                boxShadow: isLit
                     ? [
                         BoxShadow(
                           color: AppTheme.signalHigh.withValues(alpha: 0.5),
@@ -289,14 +286,14 @@ class _LEDWidget extends ConsumerWidget {
             Expanded(
               child: Text(
                 chip.id,
-                style: const TextStyle(
-                    color: AppTheme.textPrimary, fontSize: 11),
+                style:
+                    const TextStyle(color: AppTheme.textPrimary, fontSize: 11),
               ),
             ),
             Text(
-              outputPin.value.displayName,
+              isLit ? 'ON' : 'OFF',
               style: TextStyle(
-                color: AppTheme.colorForSignal(outputPin.value),
+                color: isLit ? AppTheme.signalHigh : AppTheme.textSecondary,
                 fontSize: 13,
                 fontWeight: FontWeight.bold,
               ),

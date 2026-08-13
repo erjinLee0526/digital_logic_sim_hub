@@ -1,4 +1,6 @@
 import '../models/chip_definition.dart';
+import 'io_input.dart';
+import 'io_led.dart';
 import 'ls74ls00.dart';
 
 /// Registry of all available chip types.
@@ -9,6 +11,8 @@ import 'ls74ls00.dart';
 class ChipFactory {
   static final Map<String, ChipDefinition Function()> _registry = {
     '74LS00': () => Chip74LS00(),
+    'INPUT': () => ChipInput(),
+    'LED': () => ChipLED(),
   };
 
   /// All available chip type definitions.
