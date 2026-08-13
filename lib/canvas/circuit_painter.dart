@@ -8,6 +8,15 @@ import '../models/signal_state.dart';
 import '../models/wire.dart';
 import '../theme/dark_theme.dart';
 
+const _componentLabelStyle = TextStyle(
+  color: AppTheme.textSecondary,
+  fontSize: 13,
+  fontWeight: FontWeight.w500,
+  fontFamily: 'Segoe UI',
+  fontFamilyFallback: ['Microsoft YaHei UI', 'Roboto'],
+  letterSpacing: 0.2,
+);
+
 /// Computes the branch point offset for a pin — where additional wires
 /// should fan out from, along the pin's exit direction.
 /// [pinPos] must be the absolute canvas position of the pin.
@@ -781,34 +790,39 @@ class CircuitPainter extends CustomPainter {
       orElse: () => chip.pinStates.values.first,
     );
     final isHigh = output.value == SignalState.high;
+    final inputChips =
+        circuit.chips.where((c) => c.definition.model == 'INPUT').toList();
+    final inputIndex = inputChips.indexWhere((c) => c.id == chip.id);
+    final inputName = 'IN${inputIndex + 1}';
 
     // Component label
     final labelPainter = TextPainter(
-      text: const TextSpan(
-        text: 'INPUT',
-        style: TextStyle(
-          color: AppTheme.textSecondary,
-          fontSize: 10,
-          fontWeight: FontWeight.bold,
-        ),
+      text: TextSpan(
+        text: inputName,
+        style: _componentLabelStyle,
       ),
       textDirection: ui.TextDirection.ltr,
     )..layout();
+    final labelCenterY = rect.center.dy - 12;
     labelPainter.paint(
       canvas,
-      Offset(rect.center.dx - labelPainter.width / 2, rect.top + 12),
+      Offset(
+        rect.center.dx - labelPainter.width / 2,
+        labelCenterY - labelPainter.height / 2,
+      ),
     );
 
     // Switch track
+    final trackCenterY = rect.center.dy + 18;
     final trackRect = Rect.fromCenter(
-      center: rect.center,
+      center: Offset(rect.center.dx, trackCenterY),
       width: 42,
       height: 16,
     );
     final trackPaint = Paint()
       ..color = isHigh
           ? AppTheme.signalHigh.withValues(alpha: 0.25)
-          : AppTheme.surfaceLight;
+          : AppTheme.textSecondary.withValues(alpha: 0.25);
     canvas.drawRRect(
       RRect.fromRectAndRadius(trackRect, const Radius.circular(8)),
       trackPaint,
@@ -817,7 +831,7 @@ class CircuitPainter extends CustomPainter {
     // Switch knob
     final knobX = isHigh ? trackRect.right - 10 : trackRect.left + 10;
     canvas.drawCircle(
-      Offset(knobX, rect.center.dy),
+      Offset(knobX, trackCenterY),
       9,
       Paint()..color = isHigh ? AppTheme.signalHigh : AppTheme.textSecondary,
     );
@@ -829,28 +843,30 @@ class CircuitPainter extends CustomPainter {
       orElse: () => chip.pinStates.values.first,
     );
     final isLit = input.value == SignalState.high;
+    final ledChips =
+        circuit.chips.where((c) => c.definition.model == 'LED').toList();
+    final ledIndex = ledChips.indexWhere((c) => c.id == chip.id);
+    final ledName = 'LED${ledIndex + 1}';
 
     // Component label
     final labelPainter = TextPainter(
-      text: const TextSpan(
-        text: 'LED',
-        style: TextStyle(
-          color: AppTheme.textSecondary,
-          fontSize: 10,
-          fontWeight: FontWeight.bold,
-        ),
+      text: TextSpan(
+        text: ledName,
+        style: _componentLabelStyle,
       ),
       textDirection: ui.TextDirection.ltr,
     )..layout();
     labelPainter.paint(
       canvas,
-      Offset(rect.center.dx - labelPainter.width / 2, rect.top + 12),
+      Offset(rect.center.dx - labelPainter.width / 2, rect.top + 10),
     );
+
+    final bulbCenter = rect.center.translate(0, 6);
 
     // Bulb glow
     if (isLit) {
       canvas.drawCircle(
-        rect.center,
+        bulbCenter,
         22,
         Paint()..color = AppTheme.signalHigh.withValues(alpha: 0.18),
       );
@@ -858,12 +874,12 @@ class CircuitPainter extends CustomPainter {
 
     // Bulb body
     canvas.drawCircle(
-      rect.center,
+      bulbCenter,
       14,
       Paint()..color = isLit ? AppTheme.signalHigh : AppTheme.signalHighZ,
     );
     canvas.drawCircle(
-      rect.center,
+      bulbCenter,
       14,
       Paint()
         ..color = AppTheme.chipBorder

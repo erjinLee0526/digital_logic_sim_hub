@@ -2,8 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/circuit.dart';
+import '../models/pin.dart';
+import '../models/signal_state.dart';
 import '../providers/circuit_provider.dart';
 import '../providers/editor_provider.dart';
+import '../providers/simulation_provider.dart';
 import '../canvas/hit_test.dart';
 import '../canvas/circuit_painter.dart';
 
@@ -89,8 +92,7 @@ class _CircuitCanvasState extends ConsumerState<CircuitCanvas> {
 
         child: Listener(
           // Track pointer position for ghost wire
-          onPointerMove: (event) =>
-              _updateMousePos(event.localPosition),
+          onPointerMove: (event) => _updateMousePos(event.localPosition),
           child: CustomPaint(
             painter: CircuitPainter(
               circuit: circuit,
@@ -110,9 +112,7 @@ class _CircuitCanvasState extends ConsumerState<CircuitCanvas> {
   // ── Pointer tracking ──────────────────────────────────────────
 
   void _updateMousePos(Offset localPos) {
-    ref
-        .read(mouseCircuitPositionProvider.notifier)
-        .state = localPos;
+    ref.read(mouseCircuitPositionProvider.notifier).state = localPos;
   }
 
   // ── Tap handling ───────────────────────────────────────────────
@@ -151,6 +151,11 @@ class _CircuitCanvasState extends ConsumerState<CircuitCanvas> {
         ref.read(selectedPinProvider.notifier).state = null;
       }
     } else if (hit.target == HitTarget.chipBody && hit.chipId != null) {
+      final chip = ref.read(circuitProvider).chipById(hit.chipId!);
+      if (chip?.definition.model == 'INPUT') {
+        _toggleInputSwitch(hit.chipId!);
+        return;
+      }
       ref.read(selectedChipProvider.notifier).state = hit.chipId;
       ref.read(selectedPinProvider.notifier).state = null;
       ref.read(selectedWireProvider.notifier).state = null;
@@ -164,6 +169,28 @@ class _CircuitCanvasState extends ConsumerState<CircuitCanvas> {
       ref.read(selectedChipProvider.notifier).state = null;
       ref.read(selectedWireProvider.notifier).state = null;
     }
+  }
+
+  void _toggleInputSwitch(String chipId) {
+    final circuit = ref.read(circuitProvider);
+    final chip = circuit.chipById(chipId);
+    if (chip == null) return;
+
+    final switchPin = chip.pinStates.values.firstWhere(
+      (p) => p.direction == PinDirection.output,
+      orElse: () => chip.pinStates.values.first,
+    );
+    final engine = ref.read(simulationEngineProvider);
+
+    engine.rebuild(circuit);
+    final newValue = switchPin.value == SignalState.high
+        ? SignalState.low
+        : SignalState.high;
+    engine.injectSignal(chip.pinId(switchPin.number), newValue);
+    engine.runUntilStable();
+
+    ref.read(circuitProvider.notifier).forceUpdate();
+    ref.read(selectedPinProvider.notifier).state = null;
   }
 
   void _handleSelectTap(HitTestResult hit) {
@@ -210,9 +237,7 @@ class _CircuitCanvasState extends ConsumerState<CircuitCanvas> {
     final chip = circuit.chipById(_draggedChipId!);
     if (chip == null) return;
 
-    ref
-        .read(circuitProvider.notifier)
-        .moveChip(_draggedChipId!, localPos);
+    ref.read(circuitProvider.notifier).moveChip(_draggedChipId!, localPos);
   }
 
   void _handleLongPressEnd() {

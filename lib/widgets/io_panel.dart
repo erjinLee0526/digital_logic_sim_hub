@@ -81,6 +81,7 @@ class IOPanel extends ConsumerWidget {
                       return _SwitchWidget(
                         chip: switches[index],
                         engine: engine,
+                        name: 'IN${index + 1}',
                       );
                     },
                   ),
@@ -108,7 +109,10 @@ class IOPanel extends ConsumerWidget {
                     padding: const EdgeInsets.symmetric(horizontal: 8),
                     itemCount: leds.length,
                     itemBuilder: (context, index) {
-                      return _LEDWidget(chip: leds[index]);
+                      return _LEDWidget(
+                        chip: leds[index],
+                        name: 'LED${index + 1}',
+                      );
                     },
                   ),
           ),
@@ -179,8 +183,13 @@ class _SectionHeader extends StatelessWidget {
 class _SwitchWidget extends ConsumerWidget {
   final ChipInstance chip;
   final SimulationEngine engine;
+  final String name;
 
-  const _SwitchWidget({required this.chip, required this.engine});
+  const _SwitchWidget({
+    required this.chip,
+    required this.engine,
+    required this.name,
+  });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -208,7 +217,7 @@ class _SwitchWidget extends ConsumerWidget {
             const SizedBox(width: 8),
             Expanded(
               child: Text(
-                chip.id,
+                name,
                 style:
                     const TextStyle(color: AppTheme.textPrimary, fontSize: 11),
               ),
@@ -246,8 +255,9 @@ class _SwitchWidget extends ConsumerWidget {
 
 class _LEDWidget extends ConsumerWidget {
   final ChipInstance chip;
+  final String name;
 
-  const _LEDWidget({required this.chip});
+  const _LEDWidget({required this.chip, required this.name});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -285,7 +295,7 @@ class _LEDWidget extends ConsumerWidget {
             const SizedBox(width: 8),
             Expanded(
               child: Text(
-                chip.id,
+                name,
                 style:
                     const TextStyle(color: AppTheme.textPrimary, fontSize: 11),
               ),
