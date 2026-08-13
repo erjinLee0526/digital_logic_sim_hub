@@ -1,4 +1,5 @@
 import 'package:flutter/painting.dart';
+import 'circuit_grid.dart';
 import 'pin.dart';
 import 'signal_state.dart';
 
@@ -28,24 +29,27 @@ abstract class ChipDefinition {
   Map<int, SignalState> evaluate(Map<int, SignalState> inputStates);
 
   /// Returns the relative position of each pin on the chip rectangle.
-  /// Pin 1–7 on left side, pin 14–8 on right side (standard DIP layout).
-  /// Position is relative to chip center.
+  /// DIP pins are arranged 1..perSide on the left and maxPin..perSide+1
+  /// on the right, with a pitch of one grid unit. Position is relative
+  /// to the chip center.
   Map<int, Offset> get pinRelativePositions => _computePinPositions();
 
   Map<int, Offset> _computePinPositions() {
     final map = <int, Offset>{};
     final halfW = width / 2;
-    final spacing = height / 7; // 7 positions per side
-    final topY = -height / 2;
+    final maxPin = pinDefinitions.map((pin) => pin.number).reduce((a, b) => a > b ? a : b);
+    final perSide = maxPin ~/ 2;
+    final pitch = kGridUnit;
+    final topY = -(perSide - 1) * pitch / 2;
 
     for (final pin in pinDefinitions) {
       final num = pin.number;
-      if (num <= 7) {
-        // Left side: pins 1–7
-        map[num] = Offset(-halfW, topY + spacing * (num - 0.5));
+      if (num <= perSide) {
+        // Left side: pins 1..perSide
+        map[num] = Offset(-halfW, topY + pitch * (num - 1));
       } else {
-        // Right side: pins 14–8 (14 at top, 8 near bottom)
-        map[num] = Offset(halfW, topY + spacing * (14 - num + 0.5));
+        // Right side: pins maxPin down to perSide + 1
+        map[num] = Offset(halfW, topY + pitch * (maxPin - num));
       }
     }
     return map;

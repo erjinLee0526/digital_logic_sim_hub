@@ -2,6 +2,7 @@ import 'dart:math';
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import '../models/chip_instance.dart';
+import '../models/circuit_grid.dart';
 import '../models/circuit.dart';
 import '../models/pin.dart';
 import '../models/signal_state.dart';
@@ -32,7 +33,7 @@ Offset pinBranchOffset(String pinId, Offset pinPos, Circuit circuit) {
       break;
     }
   }
-  const branchDistance = 25.0;
+  const branchDistance = kGridUnit;
   final dir = (chip != null && pinPos.dx < chip.rect.center.dx) ? -1.0 : 1.0;
   return Offset(pinPos.dx + dir * branchDistance, pinPos.dy);
 }
@@ -160,14 +161,14 @@ List<double> _candidateColumns(
         : min(p1.dx, p2.dx) - exitMargin;
     candidates.add(base);
     for (int i = 1; i < 50; i++) {
-      candidates.add(base + dir1 * i * 20);
+      candidates.add(base + dir1 * i * kGridUnit);
     }
   } else {
-    final mid = (p1.dx + p2.dx) / 2;
+    final mid = snapValueToGrid((p1.dx + p2.dx) / 2);
     candidates.add(mid);
     for (int i = 1; i < 50; i++) {
-      candidates.add(mid + i * 20);
-      candidates.add(mid - i * 20);
+      candidates.add(mid + i * kGridUnit);
+      candidates.add(mid - i * kGridUnit);
     }
   }
   return candidates;
@@ -216,7 +217,7 @@ bool _segHitsChip(Offset a, Offset b, List<Rect> obstacleRects,
 /// function computes a path that goes *outside* the cluster of all chips.
 List<Offset> _routeAround(Offset p1, Offset p2, double dir1, double dir2,
     double exitMargin, List<Rect> obstacleRects, List<String> chipIds) {
-  const cornerMargin = 15.0;
+  const cornerMargin = kGridUnit;
 
   final ex1 = p1.dx + dir1 * exitMargin;
   final ex2 = p2.dx + dir2 * exitMargin;
@@ -245,7 +246,7 @@ List<Offset> _routeAround(Offset p1, Offset p2, double dir1, double dir2,
   // Try the direct stair-step path first, but validate every segment
   // against *all* chips (no skipping — we must not enter any chip body).
   if (!hasObstacle) {
-    final mx = (ex1 + ex2) / 2;
+    final mx = snapValueToGrid((ex1 + ex2) / 2);
     final candidate = <Offset>[
       p1,
       Offset(ex1, p1.dy),
@@ -313,7 +314,7 @@ List<Offset> _routeAround(Offset p1, Offset p2, double dir1, double dir2,
 List<Offset> computeWireRoute(Offset p1, Offset p2, ChipInstance? chip1,
     ChipInstance? chip2, List<ChipInstance> allChips,
     {Offset? overrideStart, Offset? overrideEnd}) {
-  const exitMargin = 25.0;
+  const exitMargin = kGridUnit;
 
   final start = overrideStart ?? p1;
   final end = overrideEnd ?? p2;
@@ -324,8 +325,12 @@ List<Offset> computeWireRoute(Offset p1, Offset p2, ChipInstance? chip1,
   final chipIds = <String>[];
   for (final chip in allChips) {
     final r = chip.rect;
-    obstacleRects
-        .add(Rect.fromLTRB(r.left - 8, r.top - 8, r.right + 8, r.bottom + 8));
+    obstacleRects.add(Rect.fromLTRB(
+      r.left - kGridUnit,
+      r.top - kGridUnit,
+      r.right + kGridUnit,
+      r.bottom + kGridUnit,
+    ));
     chipIds.add(chip.id);
   }
 
@@ -462,7 +467,7 @@ class CircuitPainter extends CustomPainter {
   // ---- Grid ----
 
   void _drawGrid(Canvas canvas, Size size) {
-    const spacing = 20.0;
+    const spacing = kGridUnit;
     final paint = Paint()
       ..color = AppTheme.gridDot
       ..strokeWidth = 1.0;

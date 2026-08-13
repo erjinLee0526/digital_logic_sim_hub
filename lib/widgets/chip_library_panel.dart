@@ -180,7 +180,7 @@ class _ChipLibraryTile extends ConsumerWidget {
                         color: AppTheme.textSecondary,
                         fontSize: 10,
                       ),
-                      maxLines: 2,
+                      maxLines: 3,
                       overflow: TextOverflow.ellipsis,
                     ),
                     const SizedBox(height: 2),

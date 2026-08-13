@@ -27,16 +27,16 @@ class Chip74LS00 extends ChipDefinition {
   String get model => '74LS00';
 
   @override
-  String get description => 'Quad 2-Input NAND Gate';
+  String get description => '4 Gates\n2 Input\nNAND';
 
   @override
   int get propagationDelayPs => 10000; // ~10ns typical
 
   @override
-  double get width => 120;
+  double get width => 80;
 
   @override
-  double get height => 220;
+  double get height => 160;
 
   @override
   List<PinDefinition> get pinDefinitions => _pins;

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 import '../models/chip_instance.dart';
+import '../models/circuit_grid.dart';
 import '../models/circuit.dart';
 import '../models/signal_state.dart';
 import '../models/wire.dart';
@@ -23,7 +24,7 @@ class CircuitNotifier extends StateNotifier<Circuit> {
     final chip = ChipInstance(
       id: id,
       definition: def,
-      position: position,
+      position: snapOffsetToGrid(position),
     );
     state = state.addChip(chip);
     return id;
@@ -36,7 +37,7 @@ class CircuitNotifier extends StateNotifier<Circuit> {
 
   /// Moves a chip to a new position.
   void moveChip(String chipId, Offset newPosition) {
-    state = state.moveChip(chipId, newPosition);
+    state = state.moveChip(chipId, snapOffsetToGrid(newPosition));
   }
 
   // ---- Wire operations ----
@@ -84,7 +85,10 @@ class CircuitNotifier extends StateNotifier<Circuit> {
 
   /// Replaces the entire circuit state (for loading).
   void loadCircuit(Circuit circuit) {
-    state = circuit;
+    final snappedChips = circuit.chips
+        .map((chip) => chip.copyWith(position: snapOffsetToGrid(chip.position)))
+        .toList();
+    state = circuit.copyWith(chips: snappedChips);
   }
 
   /// Triggers a state notification without changing circuit data.
