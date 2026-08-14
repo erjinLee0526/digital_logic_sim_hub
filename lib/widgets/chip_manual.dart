@@ -6,7 +6,7 @@ import '../models/chip_definition.dart';
 import '../models/pin.dart';
 import '../models/signal_state.dart';
 import '../models/truth_table.dart';
-import '../theme/dark_theme.dart';
+import '../theme/app_theme.dart';
 
 /// Opens the graphical datasheet for [definition] as a dialog.
 Future<void> showChipManual(
@@ -29,15 +29,16 @@ class ChipManualDialog extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final p = AppTheme.of(context);
     final groups = definition.truthTableGroups;
     final notes = definition.datasheetNotes;
     final isStateful = definition.initialState.isNotEmpty;
 
     return Dialog(
-      backgroundColor: AppTheme.surface,
+      backgroundColor: p.surface,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(10),
-        side: const BorderSide(color: AppTheme.chipBorder),
+        side: BorderSide(color: p.chipBorder),
       ),
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 620, maxHeight: 760),
@@ -45,7 +46,7 @@ class ChipManualDialog extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             _ManualHeader(definition: definition, isStateful: isStateful),
-            const Divider(height: 1, color: AppTheme.chipBorder),
+            Divider(height: 1, color: p.chipBorder),
             Flexible(
               child: SingleChildScrollView(
                 padding: const EdgeInsets.all(16),
@@ -56,8 +57,8 @@ class ChipManualDialog extends StatelessWidget {
                     const SizedBox(height: 8),
                     Text(
                       definition.functionSummary,
-                      style: const TextStyle(
-                        color: AppTheme.textPrimary,
+                      style: TextStyle(
+                        color: p.textPrimary,
                         fontSize: 12,
                         height: 1.55,
                       ),
@@ -78,9 +79,9 @@ class ChipManualDialog extends StatelessWidget {
                         Padding(
                           padding: const EdgeInsets.only(bottom: 8),
                           child: Text(
-                            '各门电路行为一致，以下以${groups.first.name}为例。',
-                            style: const TextStyle(
-                              color: AppTheme.textSecondary,
+                            '各门电路行为一致，以下以 ${groups.first.name} 为例。',
+                            style: TextStyle(
+                              color: p.textSecondary,
                               fontSize: 11,
                             ),
                           ),
@@ -99,8 +100,8 @@ class ChipManualDialog extends StatelessWidget {
                           padding: const EdgeInsets.only(bottom: 6),
                           child: Text(
                             '\u2022 $note',
-                            style: const TextStyle(
-                              color: AppTheme.textSecondary,
+                            style: TextStyle(
+                              color: p.textSecondary,
                               fontSize: 12,
                               height: 1.4,
                             ),
@@ -126,6 +127,8 @@ class _ManualHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final p = AppTheme.of(context);
+
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 16, 8, 16),
       child: Row(
@@ -137,8 +140,8 @@ class _ManualHeader extends StatelessWidget {
               children: [
                 Text(
                   definition.model,
-                  style: const TextStyle(
-                    color: AppTheme.accent,
+                  style: TextStyle(
+                    color: p.accent,
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
                   ),
@@ -146,8 +149,8 @@ class _ManualHeader extends StatelessWidget {
                 const SizedBox(height: 4),
                 Text(
                   definition.description,
-                  style: const TextStyle(
-                    color: AppTheme.textPrimary,
+                  style: TextStyle(
+                    color: p.textPrimary,
                     fontSize: 13,
                     height: 1.35,
                   ),
@@ -168,7 +171,7 @@ class _ManualHeader extends StatelessWidget {
           IconButton(
             tooltip: '关闭',
             onPressed: () => Navigator.of(context).pop(),
-            icon: const Icon(Icons.close, color: AppTheme.textSecondary),
+            icon: Icon(Icons.close, color: p.textSecondary),
           ),
         ],
       ),
@@ -191,16 +194,18 @@ class _MetaChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final p = AppTheme.of(context);
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
-        color: AppTheme.surfaceLight,
+        color: p.surfaceLight,
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: AppTheme.chipBorder, width: 0.5),
+        border: Border.all(color: p.chipBorder, width: 0.5),
       ),
       child: Text(
         text,
-        style: const TextStyle(color: AppTheme.textSecondary, fontSize: 10),
+        style: TextStyle(color: p.textSecondary, fontSize: 10),
       ),
     );
   }
@@ -213,10 +218,12 @@ class _SectionTitle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final p = AppTheme.of(context);
+
     return Text(
       text,
-      style: const TextStyle(
-        color: AppTheme.textPrimary,
+      style: TextStyle(
+        color: p.textPrimary,
         fontSize: 13,
         fontWeight: FontWeight.bold,
       ),
@@ -233,16 +240,18 @@ class _PinoutDiagram extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final p = AppTheme.of(context);
+
     return Container(
       height: 200,
       decoration: BoxDecoration(
-        color: AppTheme.canvasBg,
+        color: p.canvasBg,
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: AppTheme.chipBorder, width: 0.5),
+        border: Border.all(color: p.chipBorder, width: 0.5),
       ),
       child: CustomPaint(
         size: Size.infinite,
-        painter: _PinoutPainter(definition),
+        painter: _PinoutPainter(definition, p),
       ),
     );
   }
@@ -250,8 +259,9 @@ class _PinoutDiagram extends StatelessWidget {
 
 class _PinoutPainter extends CustomPainter {
   final ChipDefinition definition;
+  final ThemePalette palette;
 
-  _PinoutPainter(this.definition);
+  _PinoutPainter(this.definition, this.palette);
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -276,10 +286,10 @@ class _PinoutPainter extends CustomPainter {
 
     // Body.
     final bodyPaint = Paint()
-      ..color = AppTheme.chipBody
+      ..color = palette.chipBody
       ..style = PaintingStyle.fill;
     final borderPaint = Paint()
-      ..color = AppTheme.chipBorder
+      ..color = palette.chipBorder
       ..strokeWidth = 1.5
       ..style = PaintingStyle.stroke;
     final rrect = RRect.fromRectAndRadius(rect, const Radius.circular(6));
@@ -288,7 +298,7 @@ class _PinoutPainter extends CustomPainter {
 
     // Notch indicator at the top center.
     final notchPaint = Paint()
-      ..color = AppTheme.chipBorder
+      ..color = palette.chipBorder
       ..strokeWidth = 1.5
       ..style = PaintingStyle.stroke;
     final notchRect = Rect.fromCenter(
@@ -302,8 +312,8 @@ class _PinoutPainter extends CustomPainter {
     final modelPainter = TextPainter(
       text: TextSpan(
         text: definition.model,
-        style: const TextStyle(
-          color: AppTheme.accent,
+        style: TextStyle(
+          color: palette.accent,
           fontSize: 13,
           fontWeight: FontWeight.bold,
         ),
@@ -335,7 +345,7 @@ class _PinoutPainter extends CustomPainter {
         pos,
         4.0,
         Paint()
-          ..color = AppTheme.textPrimary
+          ..color = palette.textPrimary
           ..style = PaintingStyle.stroke
           ..strokeWidth = 1.0,
       );
@@ -344,8 +354,8 @@ class _PinoutPainter extends CustomPainter {
         text: TextSpan(children: [
           TextSpan(
             text: '${pin.number}',
-            style: const TextStyle(
-              color: AppTheme.textPrimary,
+            style: TextStyle(
+              color: palette.textPrimary,
               fontSize: 10,
               fontWeight: FontWeight.w600,
             ),
@@ -374,19 +384,19 @@ class _PinoutPainter extends CustomPainter {
   Color _directionColor(PinDirection direction) {
     switch (direction) {
       case PinDirection.input:
-        return AppTheme.pinInput;
+        return palette.pinInput;
       case PinDirection.output:
-        return AppTheme.pinOutput;
+        return palette.pinOutput;
       case PinDirection.power:
-        return AppTheme.pinPower;
+        return palette.pinPower;
       case PinDirection.ground:
-        return AppTheme.pinGround;
+        return palette.pinGround;
     }
   }
 
   @override
   bool shouldRepaint(covariant _PinoutPainter oldDelegate) =>
-      oldDelegate.definition != definition;
+      oldDelegate.definition != definition || oldDelegate.palette != palette;
 }
 
 class _DirectionLegend extends StatelessWidget {
@@ -394,12 +404,14 @@ class _DirectionLegend extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const items = [
-      (AppTheme.pinInput, '输入'),
-      (AppTheme.pinOutput, '输出'),
-      (AppTheme.pinPower, '电源'),
-      (AppTheme.pinGround, '接地'),
+    final p = AppTheme.of(context);
+    final items = [
+      (p.pinInput, '输入'),
+      (p.pinOutput, '输出'),
+      (p.pinPower, '电源'),
+      (p.pinGround, '接地'),
     ];
+
     return Wrap(
       spacing: 14,
       runSpacing: 4,
@@ -419,8 +431,8 @@ class _DirectionLegend extends StatelessWidget {
               const SizedBox(width: 4),
               Text(
                 item.$2,
-                style: const TextStyle(
-                  color: AppTheme.textSecondary,
+                style: TextStyle(
+                  color: p.textSecondary,
                   fontSize: 10,
                 ),
               ),
@@ -438,6 +450,7 @@ class _PinTable extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final p = AppTheme.of(context);
     final groupByPin = <int, String>{};
     for (final group in definition.truthTableGroups) {
       for (final pin in [...group.inputPins, ...group.outputPins]) {
@@ -447,23 +460,23 @@ class _PinTable extends StatelessWidget {
     final pins = [...definition.pinDefinitions]
       ..sort((a, b) => a.number.compareTo(b.number));
 
-    const cellStyle = TextStyle(color: AppTheme.textPrimary, fontSize: 11);
-    const headerStyle = TextStyle(
-      color: AppTheme.textSecondary,
+    final cellStyle = TextStyle(color: p.textPrimary, fontSize: 11);
+    final headerStyle = TextStyle(
+      color: p.textSecondary,
       fontSize: 10,
       fontWeight: FontWeight.bold,
     );
 
-    Widget cell(String text, {TextStyle style = cellStyle}) => Padding(
+    Widget cell(String text, {TextStyle? style}) => Padding(
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
-          child: Text(text, style: style),
+          child: Text(text, style: style ?? cellStyle),
         );
 
     return ClipRRect(
       borderRadius: BorderRadius.circular(6),
       child: Table(
         border: TableBorder.all(
-          color: AppTheme.chipBorder.withValues(alpha: 0.35),
+          color: p.chipBorder.withValues(alpha: 0.35),
           width: 0.5,
         ),
         columnWidths: const {
@@ -474,7 +487,7 @@ class _PinTable extends StatelessWidget {
         },
         children: [
           TableRow(
-            decoration: const BoxDecoration(color: AppTheme.surfaceLight),
+            decoration: BoxDecoration(color: p.surfaceLight),
             children: [
               cell('引脚', style: headerStyle),
               cell('名称', style: headerStyle),
@@ -531,6 +544,7 @@ class _TruthTableSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final p = AppTheme.of(context);
     final rows = generateTruthTable(chip, group);
     final headers = [
       ...group.inputPins.map(_labelOf),
@@ -544,8 +558,8 @@ class _TruthTableSection extends StatelessWidget {
           padding: const EdgeInsets.only(bottom: 6),
           child: Text(
             group.name,
-            style: const TextStyle(
-              color: AppTheme.accent,
+            style: TextStyle(
+              color: p.accent,
               fontSize: 12,
               fontWeight: FontWeight.w600,
             ),
@@ -554,7 +568,7 @@ class _TruthTableSection extends StatelessWidget {
         Container(
           decoration: BoxDecoration(
             border: Border.all(
-              color: AppTheme.chipBorder.withValues(alpha: 0.35),
+              color: p.chipBorder.withValues(alpha: 0.35),
               width: 0.5,
             ),
             borderRadius: BorderRadius.circular(6),
@@ -563,14 +577,13 @@ class _TruthTableSection extends StatelessWidget {
             scrollDirection: Axis.horizontal,
             child: Table(
               border: TableBorder.all(
-                color: AppTheme.chipBorder.withValues(alpha: 0.35),
+                color: p.chipBorder.withValues(alpha: 0.35),
                 width: 0.5,
               ),
               defaultColumnWidth: const FixedColumnWidth(52),
               children: [
                 TableRow(
-                  decoration:
-                      const BoxDecoration(color: AppTheme.surfaceLight),
+                  decoration: BoxDecoration(color: p.surfaceLight),
                   children: [
                     for (final header in headers)
                       Padding(
@@ -579,8 +592,8 @@ class _TruthTableSection extends StatelessWidget {
                         child: Text(
                           header,
                           textAlign: TextAlign.center,
-                          style: const TextStyle(
-                            color: AppTheme.textSecondary,
+                          style: TextStyle(
+                            color: p.textSecondary,
                             fontSize: 10,
                             fontWeight: FontWeight.bold,
                           ),
@@ -591,8 +604,8 @@ class _TruthTableSection extends StatelessWidget {
                 for (final row in rows)
                   TableRow(
                     children: [
-                      ...row.inputs.map(_valueCell),
-                      ...row.outputs.map(_valueCell),
+                      ...row.inputs.map((s) => _valueCell(s, p)),
+                      ...row.outputs.map((s) => _valueCell(s, p)),
                     ],
                   ),
               ],
@@ -610,14 +623,14 @@ class _TruthTableSection extends StatelessWidget {
     return '$pinNumber';
   }
 
-  Widget _valueCell(SignalState state) {
+  Widget _valueCell(SignalState state, ThemePalette p) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
       child: Text(
         state.displayName,
         textAlign: TextAlign.center,
         style: TextStyle(
-          color: AppTheme.colorForSignal(state),
+          color: p.colorForSignal(state),
           fontSize: 11,
           fontWeight: FontWeight.w600,
         ),

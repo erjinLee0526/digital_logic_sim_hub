@@ -7,6 +7,7 @@ import '../models/signal_state.dart';
 import '../providers/circuit_provider.dart';
 import '../providers/editor_provider.dart';
 import '../providers/simulation_provider.dart';
+import '../theme/app_theme.dart';
 import '../canvas/hit_test.dart';
 import '../canvas/circuit_painter.dart';
 
@@ -51,6 +52,7 @@ class _CircuitCanvasState extends ConsumerState<CircuitCanvas> {
 
   @override
   Widget build(BuildContext context) {
+    final palette = AppTheme.of(context);
     final circuit = ref.watch(circuitProvider);
     final tool = ref.watch(editorToolProvider);
     final selectedPinId = ref.watch(selectedPinProvider);
@@ -109,6 +111,7 @@ class _CircuitCanvasState extends ConsumerState<CircuitCanvas> {
           child: CustomPaint(
             painter: CircuitPainter(
               circuit: circuit,
+              palette: palette,
               selectedPinId: selectedPinId,
               selectedChipId: selectedChipId,
               selectedWireId: selectedWireId,

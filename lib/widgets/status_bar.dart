@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../models/circuit.dart';
+import '../models/pin.dart';
 import '../providers/circuit_provider.dart';
 import '../providers/editor_provider.dart';
 import '../providers/simulation_provider.dart';
-import '../models/circuit.dart';
-import '../models/pin.dart';
-import '../engine/simulation_engine.dart';
-import '../theme/dark_theme.dart';
+import '../theme/app_theme.dart';
 
 /// Bottom status bar showing circuit info.
 class CircuitStatusBar extends ConsumerWidget {
@@ -14,6 +14,7 @@ class CircuitStatusBar extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final p = AppTheme.of(context);
     final circuit = ref.watch(circuitProvider);
     final tool = ref.watch(editorToolProvider);
     final selectedPin = ref.watch(selectedPinProvider);
@@ -21,70 +22,60 @@ class CircuitStatusBar extends ConsumerWidget {
     final selectedWire = ref.watch(selectedWireProvider);
     final engine = ref.watch(simulationEngineProvider);
 
-    String selectionInfo = 'None';
+    String selectionInfo = '无';
     if (selectedPin != null) {
       selectionInfo = _describePin(selectedPin, circuit);
     } else if (selectedChip != null) {
       final chip = circuit.chipById(selectedChip);
       if (chip != null) {
-        selectionInfo = 'Chip: ${chip.definition.model} ($selectedChip)';
+        selectionInfo = '元件：${chip.definition.model}（$selectedChip）';
       } else {
-        selectionInfo = 'Chip: $selectedChip';
+        selectionInfo = '元件：$selectedChip';
       }
     } else if (selectedWire != null) {
-      selectionInfo = 'Wire: $selectedWire';
+      selectionInfo = '导线：$selectedWire';
     }
 
     final toolName = switch (tool) {
-      EditorTool.wiring => 'Wiring',
-      EditorTool.dragging => 'Moving',
-      EditorTool.deleting => 'Deleting',
+      EditorTool.wiring => '连线',
+      EditorTool.dragging => '移动',
+      EditorTool.deleting => '删除',
     };
 
     return Container(
       height: 28,
       padding: const EdgeInsets.symmetric(horizontal: 12),
-      decoration: const BoxDecoration(
-        color: AppTheme.surface,
-        border: Border(
-          top: BorderSide(color: AppTheme.chipBorder, width: 1),
-        ),
-      ),
       child: Row(
         children: [
           // Selection info
           Text(
             selectionInfo,
-            style: const TextStyle(
-                color: AppTheme.textSecondary, fontSize: 11),
+            style: TextStyle(color: p.textSecondary, fontSize: 11),
           ),
           const SizedBox(width: 16),
           // Tool
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
             decoration: BoxDecoration(
-              color: AppTheme.surfaceLight,
+              color: p.surfaceLight,
               borderRadius: BorderRadius.circular(4),
             ),
             child: Text(
-              'Tool: $toolName',
-              style: const TextStyle(
-                  color: AppTheme.accent, fontSize: 10),
+              '工具：$toolName',
+              style: TextStyle(color: p.accent, fontSize: 10),
             ),
           ),
           const Spacer(),
           // Circuit stats
           Text(
-            'Chips: ${circuit.chips.length}  |  Wires: ${circuit.wires.length}',
-            style: const TextStyle(
-                color: AppTheme.textSecondary, fontSize: 11),
+            '元件：${circuit.chips.length}  |  导线：${circuit.wires.length}',
+            style: TextStyle(color: p.textSecondary, fontSize: 11),
           ),
           const SizedBox(width: 16),
           // Simulation time
           Text(
-            'Sim: ${engine.currentTimePs}ps',
-            style: const TextStyle(
-                color: AppTheme.textSecondary, fontSize: 11),
+            '仿真：${engine.currentTimePs}ps',
+            style: TextStyle(color: p.textSecondary, fontSize: 11),
           ),
         ],
       ),
@@ -92,7 +83,7 @@ class CircuitStatusBar extends ConsumerWidget {
   }
 
   /// Renders a friendly description of a pin for the status bar,
-  /// e.g. `74LS00 · pin 3 · 1Y (output)`.
+  /// e.g. `74LS00 引脚 3（1Y，输出）`.
   String _describePin(String pinId, Circuit circuit) {
     for (final chip in circuit.chips) {
       final prefix = '${chip.id}_';
@@ -100,17 +91,17 @@ class CircuitStatusBar extends ConsumerWidget {
 
       final number = int.tryParse(pinId.substring(prefix.length));
       final pin = number == null ? null : chip.pinStates[number];
-      if (pin == null) return 'Pin: $pinId';
+      if (pin == null) return '引脚：$pinId';
 
       final direction = switch (pin.direction) {
-        PinDirection.input => 'input',
-        PinDirection.output => 'output',
-        PinDirection.power => 'power',
-        PinDirection.ground => 'ground',
+        PinDirection.input => '输入',
+        PinDirection.output => '输出',
+        PinDirection.power => '电源',
+        PinDirection.ground => '接地',
       };
-      return '${chip.definition.model} · pin $number · '
-          '${pin.label} ($direction)';
+      return '${chip.definition.model} 引脚 $number'
+          '（${pin.label}，$direction）';
     }
-    return 'Pin: $pinId';
+    return '引脚：$pinId';
   }
 }

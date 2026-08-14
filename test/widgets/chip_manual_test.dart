@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:digital_logic_sim/chips/ls74ls86.dart';
 import 'package:digital_logic_sim/chips/ls74ls266.dart';
-import 'package:digital_logic_sim/theme/dark_theme.dart';
+import 'package:digital_logic_sim/theme/app_theme.dart';
 import 'package:digital_logic_sim/widgets/chip_library_panel.dart';
 import 'package:digital_logic_sim/widgets/chip_manual.dart';
 
@@ -12,7 +12,7 @@ void main() {
       (tester) async {
     await tester.pumpWidget(
       MaterialApp(
-        theme: AppTheme.darkTheme,
+      theme: AppTheme.lightTheme,
         home: Scaffold(
           body: Center(
             child: ChipManualDialog(definition: Chip74LS86()),
@@ -39,7 +39,7 @@ void main() {
       (tester) async {
     await tester.pumpWidget(
       MaterialApp(
-        theme: AppTheme.darkTheme,
+      theme: AppTheme.lightTheme,
         home: Scaffold(
           body: Center(
             child: ChipManualDialog(definition: Chip74LS266()),
@@ -58,7 +58,7 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         child: MaterialApp(
-          theme: AppTheme.darkTheme,
+      theme: AppTheme.lightTheme,
           home: const Scaffold(body: ChipLibraryPanel()),
         ),
       ),

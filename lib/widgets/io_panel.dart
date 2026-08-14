@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../engine/simulation_engine.dart';
 import '../models/chip_instance.dart';
 import '../models/pin.dart';
 import '../models/signal_state.dart';
 import '../providers/circuit_provider.dart';
-import '../engine/simulation_engine.dart';
 import '../providers/simulation_provider.dart';
-import '../theme/dark_theme.dart';
+import '../theme/app_theme.dart';
+import '../theme/glass.dart';
 
 class _InputControl {
   final ChipInstance chip;
@@ -26,6 +28,7 @@ class IOPanel extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final p = AppTheme.of(context);
     final circuit = ref.watch(circuitProvider);
     final engine = ref.watch(simulationEngineProvider);
 
@@ -50,33 +53,28 @@ class IOPanel extends ConsumerWidget {
     final leds =
         circuit.chips.where((c) => c.definition.model == 'LED').toList();
 
-    return Container(
+    return GlassPanel(
       width: 220,
-      decoration: const BoxDecoration(
-        color: AppTheme.surface,
-        border: Border(
-          left: BorderSide(color: AppTheme.chipBorder, width: 1),
-        ),
-      ),
+      borderRadius: BorderRadius.circular(18),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           // Header
           Container(
             padding: const EdgeInsets.all(12),
-            decoration: const BoxDecoration(
+            decoration: BoxDecoration(
               border: Border(
-                bottom: BorderSide(color: AppTheme.chipBorder, width: 1),
+                bottom: BorderSide(color: p.chipBorder, width: 1),
               ),
             ),
-            child: const Row(
+            child: Row(
               children: [
-                Icon(Icons.tune, size: 16, color: AppTheme.textPrimary),
-                SizedBox(width: 6),
+                Icon(Icons.tune, size: 16, color: p.textPrimary),
+                const SizedBox(width: 6),
                 Text(
-                  'I/O Panel',
+                  '输入 / 输出',
                   style: TextStyle(
-                    color: AppTheme.textPrimary,
+                    color: p.textPrimary,
                     fontSize: 14,
                     fontWeight: FontWeight.bold,
                   ),
@@ -87,18 +85,18 @@ class IOPanel extends ConsumerWidget {
 
           // Input Switches section
           _SectionHeader(
-            title: 'Input Switches',
+            title: '输入开关',
             onAdd: () => _addSwitch(ref),
           ),
           Expanded(
             flex: 1,
             child: inputControls.isEmpty
-                ? const Center(
+                ? Center(
                     child: Text(
-                      'No switches\nTap + to add',
+                      '暂无开关\n点击 + 添加',
                       textAlign: TextAlign.center,
                       style: TextStyle(
-                          color: AppTheme.textSecondary, fontSize: 11),
+                          color: p.textSecondary, fontSize: 11),
                     ),
                   )
                 : ListView.builder(
@@ -113,22 +111,22 @@ class IOPanel extends ConsumerWidget {
                   ),
           ),
 
-          const Divider(color: AppTheme.chipBorder, height: 1),
+          Divider(color: p.chipBorder, height: 1),
 
           // Output LEDs section
           _SectionHeader(
-            title: 'Output LEDs',
+            title: '输出指示灯',
             onAdd: () => _addLED(ref),
           ),
           Expanded(
             flex: 1,
             child: leds.isEmpty
-                ? const Center(
+                ? Center(
                     child: Text(
-                      'No LEDs\nTap + to add',
+                      '暂无指示灯\n点击 + 添加',
                       textAlign: TextAlign.center,
                       style: TextStyle(
-                          color: AppTheme.textSecondary, fontSize: 11),
+                          color: p.textSecondary, fontSize: 11),
                     ),
                   )
                 : ListView.builder(
@@ -176,14 +174,16 @@ class _SectionHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final p = AppTheme.of(context);
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       child: Row(
         children: [
           Text(
             title,
-            style: const TextStyle(
-              color: AppTheme.textSecondary,
+            style: TextStyle(
+              color: p.textSecondary,
               fontSize: 11,
               fontWeight: FontWeight.w600,
             ),
@@ -195,9 +195,9 @@ class _SectionHeader extends StatelessWidget {
             child: IconButton(
               onPressed: onAdd,
               icon: const Icon(Icons.add, size: 16),
-              color: AppTheme.accentGreen,
+              color: p.accentGreen,
               padding: EdgeInsets.zero,
-              tooltip: 'Add $title',
+              tooltip: '添加$title',
             ),
           ),
         ],
@@ -214,12 +214,13 @@ class _SwitchWidget extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final p = AppTheme.of(context);
     final switchPin = control.pin;
     final pinId = control.chip.pinId(switchPin.number);
 
     return Card(
       margin: const EdgeInsets.only(bottom: 4),
-      color: AppTheme.surfaceLight,
+      color: p.surfaceLight,
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
         child: Row(
@@ -228,15 +229,14 @@ class _SwitchWidget extends ConsumerWidget {
               Icons.toggle_on_outlined,
               size: 20,
               color: switchPin.value == SignalState.high
-                  ? AppTheme.signalHigh
-                  : AppTheme.signalLow,
+                  ? p.signalHigh
+                  : p.signalLow,
             ),
             const SizedBox(width: 8),
             Expanded(
               child: Text(
                 control.name,
-                style:
-                    const TextStyle(color: AppTheme.textPrimary, fontSize: 11),
+                style: TextStyle(color: p.textPrimary, fontSize: 11),
               ),
             ),
             IconButton(
@@ -257,8 +257,8 @@ class _SwitchWidget extends ConsumerWidget {
                     : Icons.toggle_off,
                 size: 28,
                 color: switchPin.value == SignalState.high
-                    ? AppTheme.signalHigh
-                    : AppTheme.textSecondary,
+                    ? p.signalHigh
+                    : p.textSecondary,
               ),
               padding: EdgeInsets.zero,
               constraints: const BoxConstraints(),
@@ -278,6 +278,7 @@ class _LEDWidget extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final p = AppTheme.of(context);
     // An LED observes its input pin.
     final inputPin = chip.pinStates.values.firstWhere(
       (p) => p.direction == PinDirection.input,
@@ -287,7 +288,7 @@ class _LEDWidget extends ConsumerWidget {
 
     return Card(
       margin: const EdgeInsets.only(bottom: 4),
-      color: AppTheme.surfaceLight,
+      color: p.surfaceLight,
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
         child: Row(
@@ -297,11 +298,11 @@ class _LEDWidget extends ConsumerWidget {
               height: 14,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: isLit ? AppTheme.signalHigh : AppTheme.signalHighZ,
+                color: isLit ? p.signalHigh : p.signalHighZ,
                 boxShadow: isLit
                     ? [
                         BoxShadow(
-                          color: AppTheme.signalHigh.withValues(alpha: 0.5),
+                          color: p.signalHigh.withValues(alpha: 0.5),
                           blurRadius: 6,
                           spreadRadius: 1,
                         )
@@ -313,14 +314,13 @@ class _LEDWidget extends ConsumerWidget {
             Expanded(
               child: Text(
                 name,
-                style:
-                    const TextStyle(color: AppTheme.textPrimary, fontSize: 11),
+                style: TextStyle(color: p.textPrimary, fontSize: 11),
               ),
             ),
             Text(
-              isLit ? 'ON' : 'OFF',
+              isLit ? '亮' : '灭',
               style: TextStyle(
-                color: isLit ? AppTheme.signalHigh : AppTheme.textSecondary,
+                color: isLit ? p.signalHigh : p.textSecondary,
                 fontSize: 13,
                 fontWeight: FontWeight.bold,
               ),

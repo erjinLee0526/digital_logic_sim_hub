@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../providers/editor_provider.dart';
-import '../theme/dark_theme.dart';
 
-/// Floating toolbar with tool selection and simulation controls.
+import '../providers/editor_provider.dart';
+import '../theme/app_theme.dart';
+import '../theme/glass.dart';
+
+/// Floating glass toolbar with tool selection.
 class CircuitToolbar extends ConsumerWidget {
   const CircuitToolbar({super.key});
 
@@ -11,39 +13,35 @@ class CircuitToolbar extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final currentTool = ref.watch(editorToolProvider);
 
-    return Container(
-      padding: const EdgeInsets.all(8),
-      decoration: BoxDecoration(
-        color: AppTheme.surface.withValues(alpha: 0.95),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: AppTheme.chipBorder, width: 1),
-      ),
+    return GlassPanel(
+      blur: 14,
+      borderRadius: BorderRadius.circular(12),
+      padding: const EdgeInsets.all(4),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           _ToolButton(
             icon: Icons.electric_bolt,
-            label: 'Wire',
-            tooltip: 'Wiring mode (W) — Click two pins to connect',
+            label: '导线',
+            tooltip: '连线模式（W）— 依次点击两个引脚建立连接',
             isSelected: currentTool == EditorTool.wiring,
-            onTap: () =>
-                ref.read(editorToolProvider.notifier).state = EditorTool.wiring,
+            onTap: () => ref
+                .read(editorToolProvider.notifier)
+                .state = EditorTool.wiring,
           ),
-          const SizedBox(width: 4),
           _ToolButton(
             icon: Icons.open_with,
-            label: 'Move',
-            tooltip: 'Drag mode (M) — Click and drag chips',
+            label: '移动',
+            tooltip: '拖动模式（M）— 长按芯片进行拖拽',
             isSelected: currentTool == EditorTool.dragging,
             onTap: () => ref
                 .read(editorToolProvider.notifier)
                 .state = EditorTool.dragging,
           ),
-          const SizedBox(width: 4),
           _ToolButton(
             icon: Icons.delete_outline,
-            label: 'Del',
-            tooltip: 'Delete mode (D) — Click to remove chips or wires',
+            label: '删除',
+            tooltip: '删除模式（D）— 点击移除元件或导线',
             isSelected: currentTool == EditorTool.deleting,
             onTap: () => ref
                 .read(editorToolProvider.notifier)
@@ -72,32 +70,47 @@ class _ToolButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final p = AppTheme.of(context);
+
     return Tooltip(
       message: tooltip,
       child: Material(
-        color: isSelected ? AppTheme.accent.withValues(alpha: 0.2) : Colors.transparent,
-        borderRadius: BorderRadius.circular(6),
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(8),
         child: InkWell(
-          borderRadius: BorderRadius.circular(6),
+          borderRadius: BorderRadius.circular(8),
           onTap: onTap,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 160),
+            padding:
+                const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: BoxDecoration(
+              color: isSelected
+                  ? p.accent.withValues(alpha: 0.16)
+                  : Colors.transparent,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(
+                color: isSelected
+                    ? p.accent.withValues(alpha: 0.45)
+                    : Colors.transparent,
+              ),
+            ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
                 Icon(
                   icon,
-                  size: 18,
-                  color: isSelected ? AppTheme.accent : AppTheme.textSecondary,
+                  size: 17,
+                  color: isSelected ? p.accent : p.textSecondary,
                 ),
-                const SizedBox(width: 4),
+                const SizedBox(width: 5),
                 Text(
                   label,
                   style: TextStyle(
-                    fontSize: 11,
-                    color: isSelected ? AppTheme.accent : AppTheme.textSecondary,
+                    fontSize: 12,
+                    color: isSelected ? p.accent : p.textSecondary,
                     fontWeight:
-                        isSelected ? FontWeight.bold : FontWeight.normal,
+                        isSelected ? FontWeight.w600 : FontWeight.normal,
                   ),
                 ),
               ],

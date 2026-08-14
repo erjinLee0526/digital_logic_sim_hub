@@ -8,16 +8,7 @@ import '../models/circuit.dart';
 import '../models/pin.dart';
 import '../models/signal_state.dart';
 import '../models/wire.dart';
-import '../theme/dark_theme.dart';
-
-const _componentLabelStyle = TextStyle(
-  color: AppTheme.textSecondary,
-  fontSize: 13,
-  fontWeight: FontWeight.w500,
-  fontFamily: 'Segoe UI',
-  fontFamilyFallback: ['Microsoft YaHei UI', 'Roboto'],
-  letterSpacing: 0.2,
-);
+import '../theme/app_theme.dart';
 
 /// Hard collision margin: wires may never enter this area around a visible
 /// component body.
@@ -1200,6 +1191,7 @@ List<Offset> computeWireRoute(Offset p1, Offset p2, ChipInstance? chip1,
 /// CustomPainter that renders the entire circuit canvas.
 class CircuitPainter extends CustomPainter {
   final Circuit circuit;
+  final ThemePalette palette;
   final String? selectedPinId;
   final String? selectedChipId;
   final String? selectedWireId;
@@ -1209,6 +1201,7 @@ class CircuitPainter extends CustomPainter {
 
   CircuitPainter({
     required this.circuit,
+    required this.palette,
     this.selectedPinId,
     this.selectedChipId,
     this.selectedWireId,
@@ -1222,7 +1215,7 @@ class CircuitPainter extends CustomPainter {
     // Draw background
     canvas.drawRect(
       Rect.fromLTWH(0, 0, size.width, size.height),
-      Paint()..color = AppTheme.canvasBg,
+      Paint()..color = palette.canvasBg,
     );
 
     // Draw grid
@@ -1258,7 +1251,7 @@ class CircuitPainter extends CustomPainter {
   void _drawGrid(Canvas canvas, Size size) {
     const spacing = kGridUnit;
     final paint = Paint()
-      ..color = AppTheme.gridDot
+      ..color = palette.gridDot
       ..strokeWidth = 1.0;
 
     for (double x = 0; x < size.width; x += spacing) {
@@ -1342,7 +1335,7 @@ class CircuitPainter extends CustomPainter {
       routingContext = routingContext.replacePath(wire.id, path);
 
       final isSelected = wire.id == selectedWireId;
-      final color = isSelected ? AppTheme.wireSelected : _wireColor(wire);
+      final color = isSelected ? palette.wireSelected : _wireColor(wire);
 
       final paint = Paint()
         ..color = color
@@ -1404,7 +1397,7 @@ class CircuitPainter extends CustomPainter {
         }
       }
     }
-    return AppTheme.colorForSignal(state ?? SignalState.unknown);
+    return palette.colorForSignal(state ?? SignalState.unknown);
   }
 
   // ---- Junction dots ----
@@ -1438,7 +1431,8 @@ class CircuitPainter extends CustomPainter {
         }
       }
 
-      dotPaint.color = AppTheme.colorForSignal(state ?? SignalState.unknown);
+      dotPaint.color =
+          palette.colorForSignal(state ?? SignalState.unknown);
 
       // Junction dot at the pin itself
       canvas.drawCircle(pos, 4.5, dotPaint);
@@ -1446,7 +1440,7 @@ class CircuitPainter extends CustomPainter {
           pos,
           4.5,
           Paint()
-            ..color = AppTheme.canvasBg
+          ..color = palette.canvasBg
             ..style = PaintingStyle.stroke
             ..strokeWidth = 1.0);
 
@@ -1458,7 +1452,7 @@ class CircuitPainter extends CustomPainter {
             bp,
             4.5,
             Paint()
-              ..color = AppTheme.canvasBg
+              ..color = palette.canvasBg
               ..style = PaintingStyle.stroke
               ..strokeWidth = 1.0);
       }
@@ -1470,7 +1464,7 @@ class CircuitPainter extends CustomPainter {
   void _drawGhostWire(Canvas canvas) {
     if (ghostWireStart == null || ghostWireEnd == null) return;
     final paint = Paint()
-      ..color = AppTheme.accent.withValues(alpha: 0.6)
+      ..color = palette.accent.withValues(alpha: 0.6)
       ..strokeWidth = 2.0
       ..style = PaintingStyle.stroke
       ..strokeCap = StrokeCap.round;
@@ -1514,20 +1508,39 @@ class CircuitPainter extends CustomPainter {
 
     // Chip body
     final bodyPaint = Paint()
-      ..color = AppTheme.chipBody
+      ..color = palette.chipBody
       ..style = PaintingStyle.fill;
     final borderPaint = Paint()
-      ..color = isSelected ? AppTheme.chipBorderSelected : AppTheme.chipBorder
+      ..color = isSelected ? palette.chipBorderSelected : palette.chipBorder
       ..strokeWidth = isSelected ? 2.5 : 1.5
       ..style = PaintingStyle.stroke;
 
     final rrect = RRect.fromRectAndRadius(rect, const Radius.circular(6));
+    final shadowPath = Path()..addRRect(rrect);
+    canvas.drawShadow(
+      shadowPath,
+      palette.glassShadow,
+      5,
+      true,
+    );
     canvas.drawRRect(rrect, bodyPaint);
+
+    // Glass highlight along the top edge.
+    final highlightPaint = Paint()
+      ..color =
+          Colors.white.withValues(alpha: palette.isDark ? 0.10 : 0.85)
+      ..strokeWidth = 1.2
+      ..style = PaintingStyle.stroke;
+    final highlightPath = Path()
+      ..moveTo(rect.left + 6, rect.top + 2)
+      ..lineTo(rect.right - 6, rect.top + 2);
+    canvas.drawPath(highlightPath, highlightPaint);
+
     canvas.drawRRect(rrect, borderPaint);
 
     // Notch indicator (small arc at top center)
     final notchPaint = Paint()
-      ..color = AppTheme.chipBorder
+      ..color = palette.chipBorder
       ..strokeWidth = 2.0
       ..style = PaintingStyle.stroke;
     final notchRect = Rect.fromCenter(
@@ -1546,8 +1559,8 @@ class CircuitPainter extends CustomPainter {
       final modelPainter = TextPainter(
         text: TextSpan(
           text: chip.definition.model,
-          style: const TextStyle(
-            color: AppTheme.accent,
+          style: TextStyle(
+            color: palette.accent,
             fontSize: 14,
             fontWeight: FontWeight.bold,
           ),
@@ -1567,8 +1580,8 @@ class CircuitPainter extends CustomPainter {
       final descPainter = TextPainter(
         text: TextSpan(
           text: chip.definition.description,
-          style: const TextStyle(
-            color: AppTheme.textSecondary,
+          style: TextStyle(
+            color: palette.textSecondary,
             fontSize: 9,
           ),
         ),
@@ -1602,7 +1615,14 @@ class CircuitPainter extends CustomPainter {
       final labelPainter = TextPainter(
         text: TextSpan(
           text: name,
-          style: _componentLabelStyle.copyWith(fontSize: 11),
+          style: TextStyle(
+            color: palette.textSecondary,
+            fontSize: 11,
+            fontWeight: FontWeight.w500,
+            fontFamily: 'Segoe UI',
+            fontFamilyFallback: const ['Microsoft YaHei UI', 'Roboto'],
+            letterSpacing: 0.2,
+          ),
         ),
         textDirection: ui.TextDirection.ltr,
       )..layout();
@@ -1618,8 +1638,8 @@ class CircuitPainter extends CustomPainter {
       );
       final trackPaint = Paint()
         ..color = isHigh
-            ? AppTheme.signalHigh.withValues(alpha: 0.25)
-            : AppTheme.textSecondary.withValues(alpha: 0.25);
+          ? palette.signalHigh.withValues(alpha: 0.25)
+          : palette.textSecondary.withValues(alpha: 0.25);
       canvas.drawRRect(
         RRect.fromRectAndRadius(trackRect, const Radius.circular(5)),
         trackPaint,
@@ -1629,7 +1649,7 @@ class CircuitPainter extends CustomPainter {
       canvas.drawCircle(
         Offset(knobX, rowY),
         6,
-        Paint()..color = isHigh ? AppTheme.signalHigh : AppTheme.textSecondary,
+      Paint()..color = isHigh ? palette.signalHigh : palette.textSecondary,
       );
     }
   }
@@ -1667,7 +1687,14 @@ class CircuitPainter extends CustomPainter {
     final labelPainter = TextPainter(
       text: TextSpan(
         text: ledName,
-        style: _componentLabelStyle,
+      style: TextStyle(
+        color: palette.textSecondary,
+        fontSize: 13,
+        fontWeight: FontWeight.w500,
+        fontFamily: 'Segoe UI',
+        fontFamilyFallback: const ['Microsoft YaHei UI', 'Roboto'],
+        letterSpacing: 0.2,
+      ),
       ),
       textDirection: ui.TextDirection.ltr,
     )..layout();
@@ -1683,7 +1710,7 @@ class CircuitPainter extends CustomPainter {
       canvas.drawCircle(
         bulbCenter,
         22,
-        Paint()..color = AppTheme.signalHigh.withValues(alpha: 0.18),
+      Paint()..color = palette.signalHigh.withValues(alpha: 0.18),
       );
     }
 
@@ -1691,13 +1718,13 @@ class CircuitPainter extends CustomPainter {
     canvas.drawCircle(
       bulbCenter,
       14,
-      Paint()..color = isLit ? AppTheme.signalHigh : AppTheme.signalHighZ,
+      Paint()..color = isLit ? palette.signalHigh : palette.signalHighZ,
     );
     canvas.drawCircle(
       bulbCenter,
       14,
       Paint()
-        ..color = AppTheme.chipBorder
+        ..color = palette.chipBorder
         ..style = PaintingStyle.stroke
         ..strokeWidth = 1.5,
     );
@@ -1729,7 +1756,7 @@ class CircuitPainter extends CustomPainter {
           pos,
           9.0,
           Paint()
-            ..color = AppTheme.accent
+            ..color = palette.accent
             ..style = PaintingStyle.stroke
             ..strokeWidth = 3.0,
         );
@@ -1762,7 +1789,7 @@ class CircuitPainter extends CustomPainter {
         text: TextSpan(
           text: '$pinNumber',
           style: TextStyle(
-            color: AppTheme.textPrimary,
+            color: palette.textPrimary,
             fontSize: 10,
             fontWeight: isPinSelected ? FontWeight.w800 : FontWeight.w600,
           ),
@@ -1782,8 +1809,8 @@ class CircuitPainter extends CustomPainter {
         final namePainter = TextPainter(
           text: TextSpan(
             text: pinState.label,
-            style: const TextStyle(
-              color: AppTheme.textSecondary,
+            style: TextStyle(
+              color: palette.textSecondary,
               fontSize: 8,
               fontWeight: FontWeight.w400,
             ),
@@ -1805,13 +1832,13 @@ class CircuitPainter extends CustomPainter {
   Color _pinColor(PinState pin) {
     switch (pin.direction) {
       case PinDirection.input:
-        return AppTheme.pinInput;
+        return palette.pinInput;
       case PinDirection.output:
-        return AppTheme.colorForSignal(pin.value);
+        return palette.colorForSignal(pin.value);
       case PinDirection.power:
-        return AppTheme.pinPower;
+        return palette.pinPower;
       case PinDirection.ground:
-        return AppTheme.pinGround;
+        return palette.pinGround;
     }
   }
 }

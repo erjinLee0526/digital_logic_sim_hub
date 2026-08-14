@@ -1,10 +1,13 @@
 import 'dart:math';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../chips/chip_factory.dart';
 import '../models/chip_definition.dart';
 import '../providers/circuit_provider.dart';
-import '../theme/dark_theme.dart';
+import '../theme/app_theme.dart';
+import '../theme/glass.dart';
 import 'chip_manual.dart';
 
 /// Side panel for searching and adding chips to the canvas.
@@ -38,30 +41,26 @@ class _ChipLibraryPanelState extends ConsumerState<ChipLibraryPanel> {
   @override
   Widget build(BuildContext context) {
     final chips = _filteredChips;
+    final p = AppTheme.of(context);
 
-    return Container(
+    return GlassPanel(
       width: 240,
-      decoration: const BoxDecoration(
-        color: AppTheme.surface,
-        border: Border(
-          right: BorderSide(color: AppTheme.chipBorder, width: 1),
-        ),
-      ),
+      borderRadius: BorderRadius.circular(18),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           // Header
           Container(
             padding: const EdgeInsets.all(12),
-            decoration: const BoxDecoration(
+            decoration: BoxDecoration(
               border: Border(
-                bottom: BorderSide(color: AppTheme.chipBorder, width: 1),
+                bottom: BorderSide(color: p.chipBorder, width: 1),
               ),
             ),
-            child: const Text(
+            child: Text(
               '芯片库',
               style: TextStyle(
-                color: AppTheme.textPrimary,
+                color: p.textPrimary,
                 fontSize: 14,
                 fontWeight: FontWeight.bold,
               ),
@@ -74,18 +73,17 @@ class _ChipLibraryPanelState extends ConsumerState<ChipLibraryPanel> {
             child: TextField(
               controller: _searchController,
               onChanged: (v) => setState(() => _query = v),
-              style: const TextStyle(
-                  color: AppTheme.textPrimary, fontSize: 13),
+              style: TextStyle(color: p.textPrimary, fontSize: 13),
               decoration: InputDecoration(
-                hintText: '搜索芯片...',
-                hintStyle: const TextStyle(
-                    color: AppTheme.textSecondary, fontSize: 12),
-                prefixIcon: const Icon(Icons.search,
-                    size: 18, color: AppTheme.textSecondary),
+                hintText: '搜索芯片…',
+                hintStyle:
+                    TextStyle(color: p.textSecondary, fontSize: 12),
+                prefixIcon:
+                    Icon(Icons.search, size: 18, color: p.textSecondary),
                 contentPadding: const EdgeInsets.symmetric(
                     horizontal: 10, vertical: 8),
                 filled: true,
-                fillColor: AppTheme.surfaceLight,
+                fillColor: p.surfaceLight,
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(6),
                   borderSide: BorderSide.none,
@@ -96,12 +94,12 @@ class _ChipLibraryPanelState extends ConsumerState<ChipLibraryPanel> {
 
           // Chip list
           Expanded(
-              child: chips.isEmpty
-                ? const Center(
+            child: chips.isEmpty
+                ? Center(
                     child: Text(
                       '未找到芯片',
                       style: TextStyle(
-                          color: AppTheme.textSecondary, fontSize: 12),
+                          color: p.textSecondary, fontSize: 12),
                     ),
                   )
                 : ListView.builder(
@@ -125,12 +123,14 @@ class _ChipLibraryTile extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final p = AppTheme.of(context);
+
     return Card(
       margin: const EdgeInsets.only(bottom: 6),
-      color: AppTheme.surfaceLight,
+      color: p.surfaceLight,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(6),
-        side: const BorderSide(color: AppTheme.chipBorder, width: 0.5),
+        side: BorderSide(color: p.chipBorder, width: 0.5),
       ),
       child: InkWell(
         borderRadius: BorderRadius.circular(6),
@@ -152,14 +152,12 @@ class _ChipLibraryTile extends ConsumerWidget {
                 width: 36,
                 height: 48,
                 decoration: BoxDecoration(
-                  color: AppTheme.chipBody,
+                  color: p.chipBody,
                   borderRadius: BorderRadius.circular(4),
-                  border: Border.all(
-                      color: AppTheme.chipBorder, width: 1),
+                  border: Border.all(color: p.chipBorder, width: 1),
                 ),
                 alignment: Alignment.center,
-                child: const Icon(Icons.memory,
-                    size: 20, color: AppTheme.accent),
+                child: Icon(Icons.memory, size: 20, color: p.accent),
               ),
               const SizedBox(width: 10),
               Expanded(
@@ -168,8 +166,8 @@ class _ChipLibraryTile extends ConsumerWidget {
                   children: [
                     Text(
                       definition.model,
-                      style: const TextStyle(
-                        color: AppTheme.accent,
+                      style: TextStyle(
+                        color: p.accent,
                         fontSize: 13,
                         fontWeight: FontWeight.bold,
                       ),
@@ -177,8 +175,8 @@ class _ChipLibraryTile extends ConsumerWidget {
                     const SizedBox(height: 2),
                     Text(
                       definition.description,
-                      style: const TextStyle(
-                        color: AppTheme.textSecondary,
+                      style: TextStyle(
+                        color: p.textSecondary,
                         fontSize: 10,
                       ),
                       maxLines: 3,
@@ -186,9 +184,10 @@ class _ChipLibraryTile extends ConsumerWidget {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      '${definition.pinDefinitions.length} 引脚  |  延迟 ${definition.propagationDelayPs ~/ 1000}ns',
-                      style: const TextStyle(
-                        color: AppTheme.textSecondary,
+                      '${definition.pinDefinitions.length} 引脚  |  '
+                      '延迟 ${definition.propagationDelayPs ~/ 1000}ns',
+                      style: TextStyle(
+                        color: p.textSecondary,
                         fontSize: 9,
                       ),
                     ),
@@ -200,16 +199,16 @@ class _ChipLibraryTile extends ConsumerWidget {
                 child: InkWell(
                   borderRadius: BorderRadius.circular(4),
                   onTap: () => showChipManual(context, definition),
-                  child: const Padding(
-                    padding: EdgeInsets.all(4),
-                    child: Icon(Icons.info_outline,
-                        size: 18, color: AppTheme.accent),
+                  child: Padding(
+                    padding: const EdgeInsets.all(4),
+                    child:
+                        Icon(Icons.info_outline, size: 18, color: p.accent),
                   ),
                 ),
               ),
               const SizedBox(width: 4),
-              const Icon(Icons.add_circle_outline,
-                  size: 20, color: AppTheme.accentGreen),
+              Icon(Icons.add_circle_outline,
+                  size: 20, color: p.accentGreen),
             ],
           ),
         ),
