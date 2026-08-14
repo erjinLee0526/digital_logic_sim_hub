@@ -4,6 +4,10 @@
 
 跨平台（Android/iOS/Windows）数字逻辑电路仿真软件，基于 Flutter 3.x + Dart。支持 74LS 系列芯片的四态逻辑仿真（0/1/Z/X）和时序仿真（传播延迟）。
 
+## 环境准备
+
+首次克隆后先运行 `flutter pub get` 安装依赖（要求 Flutter ≥ 3.38.4 / Dart ≥ 3.10.3，以 `pubspec.lock` 为准）。第三方库不随仓库提供，未执行此命令前 `package:xxx` 导入会报错。
+
 ## 技术栈
 
 | 层面 | 选择 |

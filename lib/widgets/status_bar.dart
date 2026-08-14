@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/circuit_provider.dart';
 import '../providers/editor_provider.dart';
 import '../providers/simulation_provider.dart';
+import '../models/circuit.dart';
+import '../models/pin.dart';
 import '../engine/simulation_engine.dart';
 import '../theme/dark_theme.dart';
 
@@ -21,7 +23,7 @@ class CircuitStatusBar extends ConsumerWidget {
 
     String selectionInfo = 'None';
     if (selectedPin != null) {
-      selectionInfo = 'Pin: $selectedPin';
+      selectionInfo = _describePin(selectedPin, circuit);
     } else if (selectedChip != null) {
       final chip = circuit.chipById(selectedChip);
       if (chip != null) {
@@ -87,5 +89,28 @@ class CircuitStatusBar extends ConsumerWidget {
         ],
       ),
     );
+  }
+
+  /// Renders a friendly description of a pin for the status bar,
+  /// e.g. `74LS00 · pin 3 · 1Y (output)`.
+  String _describePin(String pinId, Circuit circuit) {
+    for (final chip in circuit.chips) {
+      final prefix = '${chip.id}_';
+      if (!pinId.startsWith(prefix)) continue;
+
+      final number = int.tryParse(pinId.substring(prefix.length));
+      final pin = number == null ? null : chip.pinStates[number];
+      if (pin == null) return 'Pin: $pinId';
+
+      final direction = switch (pin.direction) {
+        PinDirection.input => 'input',
+        PinDirection.output => 'output',
+        PinDirection.power => 'power',
+        PinDirection.ground => 'ground',
+      };
+      return '${chip.definition.model} · pin $number · '
+          '${pin.label} ($direction)';
+    }
+    return 'Pin: $pinId';
   }
 }

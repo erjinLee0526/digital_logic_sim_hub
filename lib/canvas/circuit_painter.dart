@@ -1,6 +1,7 @@
 import 'dart:math';
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
+import 'package:collection/collection.dart';
 import '../models/chip_instance.dart';
 import '../models/circuit_grid.dart';
 import '../models/circuit.dart';
@@ -17,6 +18,357 @@ const _componentLabelStyle = TextStyle(
   fontFamilyFallback: ['Microsoft YaHei UI', 'Roboto'],
   letterSpacing: 0.2,
 );
+
+/// Hard collision margin: wires may never enter this area around a visible
+/// component body.
+const double _hardClearance = 2.0;
+
+/// Preferred clearance: routing tries to stay this far away when space
+/// allows, but it is not a hard obstacle.
+const double _softClearance = kGridUnit;
+
+/// A state used by the fallback A* search.
+class _FallbackSearchNode implements Comparable<_FallbackSearchNode> {
+  final double priority;
+  final int nodeId;
+  final double gCost;
+
+  const _FallbackSearchNode({
+    required this.priority,
+    required this.nodeId,
+    required this.gCost,
+  });
+
+  @override
+  int compareTo(_FallbackSearchNode other) {
+    final byPriority = priority.compareTo(other.priority);
+    return byPriority != 0 ? byPriority : nodeId.compareTo(other.nodeId);
+  }
+}
+
+/// Below this view scale only pin numbers are drawn; at or above it the
+/// pin function name is appended as a secondary label.
+const _pinNameZoomThreshold = 0.8;
+
+/// A single already-routed wire together with its electrical net id.
+class _RoutedWireGeometry {
+  final String wireId;
+  final int netId;
+  final List<Offset> path;
+
+  const _RoutedWireGeometry({
+    required this.wireId,
+    required this.netId,
+    required this.path,
+  });
+}
+
+/// Provides existing wire geometry and net membership for crossing scoring.
+///
+/// The base paths are computed without crossing optimization. New candidate
+/// paths are then scored against these existing paths, which keeps existing
+/// wires stable while a new wire is being routed.
+class WireRoutingContext {
+  final List<_RoutedWireGeometry> _geometries;
+  final Map<String, int> _wireNetIds;
+
+  WireRoutingContext._(this._geometries, this._wireNetIds);
+
+  factory WireRoutingContext.fromCircuit(Circuit circuit) {
+    final pinPositions = circuit.allPinPositions;
+    final wireNetIds = _buildWireNetIds(circuit);
+    final geometries = <_RoutedWireGeometry>[];
+
+    for (final wire in circuit.wires) {
+      final p1 = pinPositions[wire.pinIdA];
+      final p2 = pinPositions[wire.pinIdB];
+      if (p1 == null || p2 == null) continue;
+
+      final chip1 = _chipForWireEndpoint(wire.pinIdA, circuit.chips);
+      final chip2 = _chipForWireEndpoint(wire.pinIdB, circuit.chips);
+      final path = computeWireRoute(p1, p2, chip1, chip2, circuit.chips);
+
+      geometries.add(_RoutedWireGeometry(
+        wireId: wire.id,
+        netId: wireNetIds[wire.id] ?? -1,
+        path: path,
+      ));
+    }
+
+    return WireRoutingContext._(geometries, wireNetIds);
+  }
+
+  int? netIdForWire(String wireId) => _wireNetIds[wireId];
+
+  /// Returns a new context with [wireId]'s geometry replaced by [path].
+  ///
+  /// Painter and hit-test use this while walking wires in order, so each
+  /// wire avoids the already-optimized paths of earlier wires instead of
+  /// only avoiding their stale base paths.
+  WireRoutingContext replacePath(String wireId, List<Offset> path) {
+    final geometries = _geometries.map((geometry) {
+      if (geometry.wireId != wireId) return geometry;
+      return _RoutedWireGeometry(
+        wireId: geometry.wireId,
+        netId: geometry.netId,
+        path: path,
+      );
+    }).toList();
+    return WireRoutingContext._(geometries, _wireNetIds);
+  }
+
+  int crossingCount(
+    List<Offset> candidatePath, {
+    String? excludeWireId,
+    int? currentNetId,
+  }) {
+    var count = 0;
+    for (final geometry in _geometries) {
+      if (excludeWireId != null && geometry.wireId == excludeWireId) continue;
+      if (currentNetId != null && geometry.netId == currentNetId) continue;
+      count += _countPathCrossings(candidatePath, geometry.path);
+    }
+    return count;
+  }
+
+  double overlapLength(
+    List<Offset> candidatePath, {
+    String? excludeWireId,
+    int? currentNetId,
+  }) {
+    var length = 0.0;
+    for (final geometry in _geometries) {
+      if (excludeWireId != null && geometry.wireId == excludeWireId) continue;
+      if (currentNetId != null && geometry.netId == currentNetId) continue;
+      length += _countPathOverlapLength(candidatePath, geometry.path);
+    }
+    return length;
+  }
+
+  /// Longest same-direction overlap with any single existing wire.
+  double maxOverlapLength(
+    List<Offset> candidatePath, {
+    String? excludeWireId,
+    int? currentNetId,
+  }) {
+    var maxLength = 0.0;
+    for (final geometry in _geometries) {
+      if (excludeWireId != null && geometry.wireId == excludeWireId) continue;
+      if (currentNetId != null && geometry.netId == currentNetId) continue;
+      final overlap =
+          _countPathOverlapLength(candidatePath, geometry.path);
+      if (overlap > maxLength) maxLength = overlap;
+    }
+    return maxLength;
+  }
+}
+
+/// Finds the chip that owns a wire endpoint pin.
+ChipInstance? _chipForWireEndpoint(String pinId, List<ChipInstance> chips) {
+  for (final chip in chips) {
+    if (pinId.startsWith('${chip.id}_')) return chip;
+  }
+  return null;
+}
+
+/// Assigns an integer net id to every wire using union-find over pins.
+Map<String, int> _buildWireNetIds(Circuit circuit) {
+  final parent = <String, String>{};
+
+  String find(String node) {
+    var root = node;
+    while (parent[root] != root) {
+      root = parent[root]!;
+    }
+    while (parent[node] != node) {
+      final next = parent[node]!;
+      parent[node] = root;
+      node = next;
+    }
+    return root;
+  }
+
+  void ensure(String node) {
+    parent.putIfAbsent(node, () => node);
+  }
+
+  void union(String a, String b) {
+    ensure(a);
+    ensure(b);
+    final rootA = find(a);
+    final rootB = find(b);
+    if (rootA != rootB) parent[rootB] = rootA;
+  }
+
+  for (final wire in circuit.wires) {
+    union(wire.pinIdA, wire.pinIdB);
+  }
+
+  final rootIds = <String, int>{};
+  final result = <String, int>{};
+  for (final wire in circuit.wires) {
+    final root = find(wire.pinIdA);
+    result[wire.id] = rootIds.putIfAbsent(root, () => rootIds.length);
+  }
+  return result;
+}
+
+double _pathLength(List<Offset> path) {
+  var length = 0.0;
+  for (var i = 0; i < path.length - 1; i++) {
+    length += (path[i] - path[i + 1]).distance;
+  }
+  return length;
+}
+
+bool _strictlyInside(double value, double a, double b) {
+  final low = min(a, b);
+  final high = max(a, b);
+  return value > low && value < high;
+}
+
+int _countPathCrossings(List<Offset> first, List<Offset> second) {
+  var count = 0;
+  for (var i = 0; i < first.length - 1; i++) {
+    final a1 = first[i];
+    final a2 = first[i + 1];
+    final aHorizontal = (a1.dy - a2.dy).abs() < 0.01;
+
+    for (var j = 0; j < second.length - 1; j++) {
+      final b1 = second[j];
+      final b2 = second[j + 1];
+      final bHorizontal = (b1.dy - b2.dy).abs() < 0.01;
+      if (aHorizontal == bHorizontal) continue;
+
+      if (aHorizontal) {
+        final y = a1.dy;
+        final x = b1.dx;
+        if (_strictlyInside(x, a1.dx, a2.dx) &&
+            _strictlyInside(y, b1.dy, b2.dy)) {
+          count++;
+        }
+      } else {
+        final x = a1.dx;
+        final y = b1.dy;
+        if (_strictlyInside(y, a1.dy, a2.dy) &&
+            _strictlyInside(x, b1.dx, b2.dx)) {
+          count++;
+        }
+      }
+    }
+  }
+  return count;
+}
+
+double _countPathOverlapLength(List<Offset> first, List<Offset> second) {
+  var length = 0.0;
+  for (var i = 0; i < first.length - 1; i++) {
+    final a1 = first[i];
+    final a2 = first[i + 1];
+    final aHorizontal = (a1.dy - a2.dy).abs() < 0.01;
+
+    for (var j = 0; j < second.length - 1; j++) {
+      final b1 = second[j];
+      final b2 = second[j + 1];
+      final bHorizontal = (b1.dy - b2.dy).abs() < 0.01;
+      if (aHorizontal != bHorizontal) continue;
+
+      if (aHorizontal) {
+        if ((a1.dy - b1.dy).abs() >= 0.01) continue;
+        final low = max(min(a1.dx, a2.dx), min(b1.dx, b2.dx));
+        final high = min(max(a1.dx, a2.dx), max(b1.dx, b2.dx));
+        if (high > low) length += high - low;
+      } else {
+        if ((a1.dx - b1.dx).abs() >= 0.01) continue;
+        final low = max(min(a1.dy, a2.dy), min(b1.dy, b2.dy));
+        final high = min(max(a1.dy, a2.dy), max(b1.dy, b2.dy));
+        if (high > low) length += high - low;
+      }
+    }
+  }
+  return length;
+}
+
+double _countPathInsideRectsLength(
+  List<Offset> path,
+  List<Rect> rects,
+) {
+  var length = 0.0;
+  for (var i = 0; i < path.length - 1; i++) {
+    final a = path[i];
+    final b = path[i + 1];
+    final horizontal = (a.dy - b.dy).abs() < 0.01;
+    for (final rect in rects) {
+      if (horizontal) {
+        if (a.dy <= rect.top || a.dy >= rect.bottom) continue;
+        final low = max(min(a.dx, b.dx), rect.left);
+        final high = min(max(a.dx, b.dx), rect.right);
+        if (high > low) length += high - low;
+      } else {
+        if (a.dx <= rect.left || a.dx >= rect.right) continue;
+        final low = max(min(a.dy, b.dy), rect.top);
+        final high = min(max(a.dy, b.dy), rect.bottom);
+        if (high > low) length += high - low;
+      }
+    }
+  }
+  return length;
+}
+
+bool _isGridAligned(Offset point) {
+  return (point.dx - snapValueToGrid(point.dx)).abs() < 0.01 &&
+      (point.dy - snapValueToGrid(point.dy)).abs() < 0.01;
+}
+
+double _scorePath(
+  List<Offset> path,
+  WireRoutingContext context,
+  String? currentWireId,
+  List<Rect> softObstacleRects,
+) {
+  final currentNetId =
+      currentWireId == null ? null : context.netIdForWire(currentWireId);
+  final crossings = context.crossingCount(
+    path,
+    excludeWireId: currentWireId,
+    currentNetId: currentNetId,
+  );
+  final overlapLength = context.overlapLength(
+    path,
+    excludeWireId: currentWireId,
+    currentNetId: currentNetId,
+  );
+  final maxOverlapLength = context.maxOverlapLength(
+    path,
+    excludeWireId: currentWireId,
+    currentNetId: currentNetId,
+  );
+  if (maxOverlapLength > 0.01) {
+    return double.infinity;
+  }
+  final overlapGrids = overlapLength / kGridUnit;
+  // A same-direction overlap longer than one grid cell is treated as a
+  // near-forbidden item, so candidates with shorter overlaps win unless
+  // no clean path exists at all.
+  final overlapPenalty = overlapGrids <= 1.0
+      ? overlapGrids * 500.0
+      : overlapGrids * 100000.0;
+  final softOverlapLength =
+      _countPathInsideRectsLength(path, softObstacleRects);
+  final softPenalty = softOverlapLength / kGridUnit * 40.0;
+  final offGridSegments = path.where((point) => !_isGridAligned(point)).length;
+  final length = _pathLength(path) / kGridUnit;
+  final bends = path.length > 2 ? path.length - 2 : 0;
+
+  // Crossings and long overlaps are the dominant costs; length and bends
+  // only break ties.
+  return crossings * 1000.0 +
+      overlapPenalty +
+      softPenalty +
+      offGridSegments * 10.0 +
+      length +
+      bends * 20.0;
+}
 
 /// Computes the branch point offset for a pin — where additional wires
 /// should fan out from, along the pin's exit direction.
@@ -129,7 +481,16 @@ Offset? computeWireBranchPoint(String pinId, Circuit circuit,
     if (anchorWire.pinIdB.startsWith('${c.id}_')) chip2 = c;
   }
 
-  final path = computeWireRoute(p1, p2, chip1, chip2, circuit.chips);
+  final routingContext = WireRoutingContext.fromCircuit(circuit);
+  final path = computeWireRoute(
+    p1,
+    p2,
+    chip1,
+    chip2,
+    circuit.chips,
+    routingContext: routingContext,
+    currentWireId: anchorWire.id,
+  );
   final vSeg = findVerticalSegment(path);
 
   if (vSeg != null && targetY != null) {
@@ -155,20 +516,21 @@ double exitDirection(Offset pinPos, ChipInstance? chip) {
 List<double> _candidateColumns(
     Offset p1, Offset p2, double dir1, double dir2, double exitMargin) {
   final candidates = <double>[];
+  const candidateStep = kGridUnit / 2;
   if (dir1 == dir2) {
     final base = (dir1 > 0)
         ? max(p1.dx, p2.dx) + exitMargin
         : min(p1.dx, p2.dx) - exitMargin;
     candidates.add(base);
-    for (int i = 1; i < 50; i++) {
-      candidates.add(base + dir1 * i * kGridUnit);
+    for (int i = 1; i < 100; i++) {
+      candidates.add(base + dir1 * i * candidateStep);
     }
   } else {
     final mid = snapValueToGrid((p1.dx + p2.dx) / 2);
     candidates.add(mid);
-    for (int i = 1; i < 50; i++) {
-      candidates.add(mid + i * kGridUnit);
-      candidates.add(mid - i * kGridUnit);
+    for (int i = 1; i < 100; i++) {
+      candidates.add(mid + i * candidateStep);
+      candidates.add(mid - i * candidateStep);
     }
   }
   return candidates;
@@ -211,29 +573,83 @@ bool _segHitsChip(Offset a, Offset b, List<Rect> obstacleRects,
   return false;
 }
 
-/// Phase-2 fallback: route around obstacles by going above/below them.
+/// Verifies every segment of [path] against the chip obstacle list.
 ///
-/// All chips are treated as obstacles — no chip is skipped, because this
-/// function computes a path that goes *outside* the cluster of all chips.
-List<Offset> _routeAround(Offset p1, Offset p2, double dir1, double dir2,
-    double exitMargin, List<Rect> obstacleRects, List<String> chipIds) {
+/// The first segment may skip the source chip and the last segment may skip
+/// the target chip, because leaving/entering a pin at a chip edge is legal.
+bool _pathClearOfChips(
+  List<Offset> path,
+  List<Rect> obstacleRects,
+  List<String> chipIds, {
+  String? startSkipId,
+  String? endSkipId,
+}) {
+  for (var i = 0; i < path.length - 1; i++) {
+    var skipId = '';
+    if (i == 0) skipId = startSkipId ?? '';
+    if (i == path.length - 2) skipId = endSkipId ?? skipId;
+    if (_segHitsChip(
+      path[i],
+      path[i + 1],
+      obstacleRects,
+      chipIds,
+      skipId.isEmpty ? null : skipId,
+    )) {
+      return false;
+    }
+  }
+  return true;
+}
+
+/// Builds one Phase 1 stair-step candidate for [midX].
+List<Offset> _buildPhase1Path(
+  Offset start,
+  Offset end,
+  double dir1,
+  double dir2,
+  double midX,
+) {
+  // In a narrow corridor the preferred 20px lead-out is not always
+  // available. Use the pin edge as the minimum instead, so the vertical
+  // column starts at the end of the horizontal lead-out rather than in
+  // the middle of a backtracking segment.
+  final exit1X = (dir1 > 0) ? max(start.dx, midX) : min(start.dx, midX);
+  final exit2X = (dir2 > 0) ? max(end.dx, midX) : min(end.dx, midX);
+
+  return [
+    start,
+    Offset(exit1X, start.dy),
+    Offset(midX, start.dy),
+    Offset(midX, end.dy),
+    Offset(exit2X, end.dy),
+    end,
+  ];
+}
+
+/// Builds both "route above" and "route below" candidates in
+/// distance-preferred order, validating them against all chip obstacles.
+List<List<Offset>> _routeAroundCandidates(
+  Offset p1,
+  Offset p2,
+  double dir1,
+  double dir2,
+  double exitMargin,
+  List<Rect> obstacleRects,
+  List<String> chipIds,
+) {
   const cornerMargin = kGridUnit;
 
   final ex1 = p1.dx + dir1 * exitMargin;
   final ex2 = p2.dx + dir2 * exitMargin;
-
-  // Use the exit-point X range (not the pin X range) because the wire
-  // actually spans from exit1 to exit2 horizontally.
   final routeMinX = min(ex1, ex2);
   final routeMaxX = max(ex1, ex2);
   final yMin = min(p1.dy, p2.dy);
   final yMax = max(p1.dy, p2.dy);
 
-  double highestTop = double.infinity;
-  double lowestBottom = double.negativeInfinity;
-  bool hasObstacle = false;
-  for (int i = 0; i < obstacleRects.length; i++) {
-    final r = obstacleRects[i];
+  var highestTop = double.infinity;
+  var lowestBottom = double.negativeInfinity;
+  var hasObstacle = false;
+  for (final r in obstacleRects) {
     if (r.bottom > yMin && r.top < yMax) {
       if (r.right > routeMinX && r.left < routeMaxX) {
         hasObstacle = true;
@@ -243,11 +659,9 @@ List<Offset> _routeAround(Offset p1, Offset p2, double dir1, double dir2,
     }
   }
 
-  // Try the direct stair-step path first, but validate every segment
-  // against *all* chips (no skipping — we must not enter any chip body).
   if (!hasObstacle) {
     final mx = snapValueToGrid((ex1 + ex2) / 2);
-    final candidate = <Offset>[
+    final direct = <Offset>[
       p1,
       Offset(ex1, p1.dy),
       Offset(mx, p1.dy),
@@ -255,19 +669,15 @@ List<Offset> _routeAround(Offset p1, Offset p2, double dir1, double dir2,
       Offset(ex2, p2.dy),
       p2,
     ];
-    // Verify every segment against every chip
-    bool ok = true;
-    for (int i = 0; ok && i < candidate.length - 1; i++) {
-      if (_segHitsChip(
-          candidate[i], candidate[i + 1], obstacleRects, chipIds, null)) {
-        ok = false;
-      }
+    if (_pathClearOfChips(direct, obstacleRects, chipIds)) {
+      return [direct];
     }
-    if (ok) return candidate;
-    // Fall through: a chip blocks the direct path after all, so re-detect
-    // obstacles across the full Y range (including chips above/below the
-    // pin band that the vertical segment at mx would intersect).
+
+    // A chip spans the full Y range, so re-detect obstacles across the
+    // complete X span and fall through to top/bottom routing.
     hasObstacle = true;
+    highestTop = double.infinity;
+    lowestBottom = double.negativeInfinity;
     for (final r in obstacleRects) {
       if (r.right > routeMinX && r.left < routeMaxX) {
         highestTop = min(highestTop, r.top);
@@ -276,13 +686,8 @@ List<Offset> _routeAround(Offset p1, Offset p2, double dir1, double dir2,
     }
   }
 
-  final goAbove = (p1.dy - highestTop).abs() + (p2.dy - highestTop).abs() <
-      (p1.dy - lowestBottom).abs() + (p2.dy - lowestBottom).abs();
-  final clearanceY =
-      goAbove ? highestTop - cornerMargin : lowestBottom + cornerMargin;
-
-  double minAllX = double.infinity;
-  double maxAllX = double.negativeInfinity;
+  var minAllX = double.infinity;
+  var maxAllX = double.negativeInfinity;
   for (final r in obstacleRects) {
     minAllX = min(minAllX, r.left);
     maxAllX = max(maxAllX, r.right);
@@ -297,15 +702,298 @@ List<Offset> _routeAround(Offset p1, Offset p2, double dir1, double dir2,
         : max(p1.dx, maxAllX) + exitMargin;
   }
 
-  return [
-    p1,
-    Offset(ex1, p1.dy),
-    Offset(outerX, p1.dy),
-    Offset(outerX, clearanceY),
-    Offset(ex2, clearanceY),
-    Offset(ex2, p2.dy),
-    p2,
-  ];
+  List<Offset> buildAround(double clearanceY) => [
+        p1,
+        Offset(ex1, p1.dy),
+        Offset(outerX, p1.dy),
+        Offset(outerX, clearanceY),
+        Offset(ex2, clearanceY),
+        Offset(ex2, p2.dy),
+        p2,
+      ];
+
+  final goAbove = (p1.dy - highestTop).abs() + (p2.dy - highestTop).abs() <
+      (p1.dy - lowestBottom).abs() + (p2.dy - lowestBottom).abs();
+  final options = <List<Offset>>[];
+
+  void addIfValid(double clearanceY) {
+    final path = buildAround(clearanceY);
+    if (_pathClearOfChips(path, obstacleRects, chipIds)) {
+      options.add(path);
+    }
+  }
+
+  if (goAbove) {
+    if (highestTop.isFinite) addIfValid(highestTop - cornerMargin);
+    if (lowestBottom.isFinite) addIfValid(lowestBottom + cornerMargin);
+  } else {
+    if (lowestBottom.isFinite) addIfValid(lowestBottom + cornerMargin);
+    if (highestTop.isFinite) addIfValid(highestTop - cornerMargin);
+  }
+
+  return options;
+}
+
+bool _pointInsideAnyObstacle(Offset point, List<Rect> obstacleRects) {
+  for (final rect in obstacleRects) {
+    if (point.dx > rect.left &&
+        point.dx < rect.right &&
+        point.dy > rect.top &&
+        point.dy < rect.bottom) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/// Simplifies a grid path by removing collinear intermediate points.
+List<Offset> _simplifyGridPath(List<Offset> path) {
+  if (path.length <= 2) return List<Offset>.from(path);
+
+  final result = <Offset>[path.first];
+  for (var i = 1; i < path.length - 1; i++) {
+    final previous = result.last;
+    final current = path[i];
+    final next = path[i + 1];
+    if (current == previous) continue;
+    final straight =
+        (previous.dx == current.dx && current.dx == next.dx) ||
+            (previous.dy == current.dy && current.dy == next.dy);
+    if (!straight) result.add(current);
+  }
+  result.add(path.last);
+  return result;
+}
+
+/// Last-resort orthogonal route on a 10px sub-grid.
+///
+/// The search is weighted: component collisions are hard blockers, while
+/// same-direction overlap with other nets carries a very high cost. It
+/// therefore avoids the remaining overlap cases that fixed Phase 1/Phase 2
+/// candidates cannot represent.
+List<Offset> _fallbackOrthogonalPath(
+  Offset start,
+  Offset end,
+  List<Rect> obstacleRects,
+  List<String> chipIds,
+  WireRoutingContext? routingContext,
+  String? currentWireId,
+  List<Rect> softObstacleRects, {
+  String? startSkipId,
+  String? endSkipId,
+}) {
+  const subGrid = kGridUnit / 2;
+  const maxGridIndex = 1000;
+
+  int gridX(double value) =>
+      (value / subGrid).round().clamp(0, maxGridIndex).toInt();
+  int gridY(double value) =>
+      (value / subGrid).round().clamp(0, maxGridIndex).toInt();
+  int nodeId(int x, int y) => x * (maxGridIndex + 1) + y;
+
+  final startX = gridX(start.dx);
+  final startY = gridY(start.dy);
+  final endX = gridX(end.dx);
+  final endY = gridY(end.dy);
+  final startId = nodeId(startX, startY);
+  final endId = nodeId(endX, endY);
+  final context = routingContext;
+  final currentNetId =
+      currentWireId == null ? null : context?.netIdForWire(currentWireId);
+
+  List<Offset> search(int minX, int maxX, int minY, int maxY) {
+    final gScore = <int, double>{startId: 0.0};
+    final cameFrom = <int, int>{};
+    final queue = HeapPriorityQueue<_FallbackSearchNode>(
+      (a, b) => a.compareTo(b),
+    );
+
+    double heuristic(int id) {
+      final x = id ~/ (maxGridIndex + 1);
+      final y = id % (maxGridIndex + 1);
+      return (endX - x).abs().toDouble() + (endY - y).abs().toDouble();
+    }
+
+    queue.add(_FallbackSearchNode(
+      priority: heuristic(startId),
+      nodeId: startId,
+      gCost: 0.0,
+    ));
+
+    bool nodeBlocked(int x, int y) {
+      if (x == startX && y == startY) return false;
+      if (x == endX && y == endY) return false;
+      return _pointInsideAnyObstacle(
+        Offset(x * subGrid, y * subGrid),
+        obstacleRects,
+      );
+    }
+
+    bool segmentBlocked(int fromId, int toId) {
+      final fromX = fromId ~/ (maxGridIndex + 1);
+      final fromY = fromId % (maxGridIndex + 1);
+      final toX = toId ~/ (maxGridIndex + 1);
+      final toY = toId % (maxGridIndex + 1);
+
+      String? skipId;
+      if (fromId == startId) skipId = startSkipId;
+      if (toId == endId) skipId = endSkipId ?? skipId;
+
+      return _segHitsChip(
+        Offset(fromX * subGrid, fromY * subGrid),
+        Offset(toX * subGrid, toY * subGrid),
+        obstacleRects,
+        chipIds,
+        skipId,
+      );
+    }
+
+    double? segmentCost(int fromId, int toId) {
+      if (segmentBlocked(fromId, toId)) return null;
+
+      final fromX = fromId ~/ (maxGridIndex + 1);
+      final fromY = fromId % (maxGridIndex + 1);
+      final toX = toId ~/ (maxGridIndex + 1);
+      final toY = toId % (maxGridIndex + 1);
+      final fromPoint = Offset(fromX * subGrid, fromY * subGrid);
+      final toPoint = Offset(toX * subGrid, toY * subGrid);
+
+      var cost = 1.0;
+      if (context != null) {
+        final overlap = context!.maxOverlapLength(
+          [fromPoint, toPoint],
+          excludeWireId: currentWireId,
+          currentNetId: currentNetId,
+        );
+        cost += overlap / subGrid * 100000.0;
+      }
+
+      final softOverlap =
+          _countPathInsideRectsLength([fromPoint, toPoint], softObstacleRects);
+      cost += softOverlap / subGrid * 0.5;
+      if (!_isGridAligned(toPoint)) cost += 0.5;
+      return cost;
+    }
+
+    const directions = [
+      [1, 0],
+      [-1, 0],
+      [0, 1],
+      [0, -1],
+    ];
+
+    while (queue.isNotEmpty) {
+      final node = queue.removeFirst();
+      if (node.gCost > (gScore[node.nodeId] ?? double.infinity) + 0.0001) {
+        continue;
+      }
+      if (node.nodeId == endId) break;
+
+      final currentX = node.nodeId ~/ (maxGridIndex + 1);
+      final currentY = node.nodeId % (maxGridIndex + 1);
+
+      for (final direction in directions) {
+        final nextX = currentX + direction[0];
+        final nextY = currentY + direction[1];
+        if (nextX < minX ||
+            nextX > maxX ||
+            nextY < minY ||
+            nextY > maxY) {
+          continue;
+        }
+
+        final nextId = nodeId(nextX, nextY);
+        if (nodeBlocked(nextX, nextY)) continue;
+        final moveCost = segmentCost(node.nodeId, nextId);
+        if (moveCost == null) continue;
+
+        final tentative = node.gCost + moveCost;
+        if (tentative < (gScore[nextId] ?? double.infinity)) {
+          gScore[nextId] = tentative;
+          cameFrom[nextId] = node.nodeId;
+          queue.add(_FallbackSearchNode(
+            priority: tentative + heuristic(nextId),
+            nodeId: nextId,
+            gCost: tentative,
+          ));
+        }
+      }
+    }
+
+    if (!cameFrom.containsKey(endId)) {
+      return const <Offset>[];
+    }
+
+    final reversedIds = <int>[];
+    var current = endId;
+    while (current != startId) {
+      reversedIds.add(current);
+      final previous = cameFrom[current];
+      if (previous == null) return const <Offset>[];
+      current = previous;
+    }
+    reversedIds.add(startId);
+
+    final points = <Offset>[];
+    for (final id in reversedIds.reversed) {
+      final x = id ~/ (maxGridIndex + 1);
+      final y = id % (maxGridIndex + 1);
+      points.add(Offset(x * subGrid, y * subGrid));
+    }
+    return _simplifyGridPath(points);
+  }
+
+  var minX = min(gridX(start.dx), gridX(end.dx)) - 4;
+  var maxX = max(gridX(start.dx), gridX(end.dx)) + 4;
+  var minY = min(gridY(start.dy), gridY(end.dy)) - 4;
+  var maxY = max(gridY(start.dy), gridY(end.dy)) + 4;
+
+  for (final rect in obstacleRects) {
+    minX = min(minX, (rect.left / subGrid).floor() - 4);
+    maxX = max(maxX, (rect.right / subGrid).ceil() + 4);
+    minY = min(minY, (rect.top / subGrid).floor() - 4);
+    maxY = max(maxY, (rect.bottom / subGrid).ceil() + 4);
+  }
+
+  minX = minX.clamp(0, maxGridIndex).toInt();
+  maxX = maxX.clamp(0, maxGridIndex).toInt();
+  minY = minY.clamp(0, maxGridIndex).toInt();
+  maxY = maxY.clamp(0, maxGridIndex).toInt();
+
+  var path = search(minX, maxX, minY, maxY);
+  if (path.isEmpty) {
+    path = search(0, maxGridIndex, 0, maxGridIndex);
+  }
+
+  if (path.isEmpty) {
+    var minLeft = double.infinity;
+    var maxRight = double.negativeInfinity;
+    var minTop = double.infinity;
+    var maxBottom = double.negativeInfinity;
+    for (final rect in obstacleRects) {
+      minLeft = min(minLeft, rect.left);
+      maxRight = max(maxRight, rect.right);
+      minTop = min(minTop, rect.top);
+      maxBottom = max(maxBottom, rect.bottom);
+    }
+    if (!minLeft.isFinite) {
+      minLeft = min(start.dx, end.dx) - kGridUnit;
+      maxRight = max(start.dx, end.dx) + kGridUnit;
+      minTop = min(start.dy, end.dy) - kGridUnit;
+      maxBottom = max(start.dy, end.dy) + kGridUnit;
+    }
+    final left = minLeft - kGridUnit;
+    final top = minTop - kGridUnit;
+    path = [
+      start,
+      Offset(left, start.dy),
+      Offset(left, top),
+      Offset(end.dx, top),
+      end,
+    ];
+  }
+
+  return path;
 }
 
 /// Computes the orthogonal (Manhattan) path between two points, avoiding
@@ -313,7 +1001,10 @@ List<Offset> _routeAround(Offset p1, Offset p2, double dir1, double dir2,
 /// painter, hit‑test, and junction‑point computation.
 List<Offset> computeWireRoute(Offset p1, Offset p2, ChipInstance? chip1,
     ChipInstance? chip2, List<ChipInstance> allChips,
-    {Offset? overrideStart, Offset? overrideEnd}) {
+    {Offset? overrideStart,
+    Offset? overrideEnd,
+    WireRoutingContext? routingContext,
+    String? currentWireId}) {
   const exitMargin = kGridUnit;
 
   final start = overrideStart ?? p1;
@@ -321,15 +1012,22 @@ List<Offset> computeWireRoute(Offset p1, Offset p2, ChipInstance? chip1,
   final startSkipId = overrideStart != null ? null : chip1?.id;
   final endSkipId = overrideEnd != null ? null : chip2?.id;
 
-  final obstacleRects = <Rect>[];
+  final softObstacleRects = <Rect>[];
+  final hardObstacleRects = <Rect>[];
   final chipIds = <String>[];
   for (final chip in allChips) {
     final r = chip.rect;
-    obstacleRects.add(Rect.fromLTRB(
+    softObstacleRects.add(Rect.fromLTRB(
       r.left - kGridUnit,
       r.top - kGridUnit,
       r.right + kGridUnit,
       r.bottom + kGridUnit,
+    ));
+    hardObstacleRects.add(Rect.fromLTRB(
+      r.left - _hardClearance,
+      r.top - _hardClearance,
+      r.right + _hardClearance,
+      r.bottom + _hardClearance,
     ));
     chipIds.add(chip.id);
   }
@@ -359,17 +1057,43 @@ List<Offset> computeWireRoute(Offset p1, Offset p2, ChipInstance? chip1,
     // Path A: vertical first  →  ─┐
     final cornerA = Offset(start.dx, end.dy);
     final skipA2 = entersFromCorrectSide(cornerA) ? endSkipId : null;
-    if (!_segHitsChip(start, cornerA, obstacleRects, chipIds, startSkipId) &&
-        !_segHitsChip(cornerA, end, obstacleRects, chipIds, skipA2)) {
-      return [start, cornerA, end];
-    }
+    final pathAValid = !_segHitsChip(
+            start, cornerA, hardObstacleRects, chipIds, startSkipId) &&
+        !_segHitsChip(cornerA, end, hardObstacleRects, chipIds, skipA2);
 
     // Path B: horizontal first  →  └─
     final cornerB = Offset(end.dx, start.dy);
     final skipB2 = entersFromCorrectSide(cornerB) ? endSkipId : null;
-    if (!_segHitsChip(start, cornerB, obstacleRects, chipIds, startSkipId) &&
-        !_segHitsChip(cornerB, end, obstacleRects, chipIds, skipB2)) {
-      return [start, cornerB, end];
+    final pathBValid = !_segHitsChip(
+            start, cornerB, hardObstacleRects, chipIds, startSkipId) &&
+        !_segHitsChip(cornerB, end, hardObstacleRects, chipIds, skipB2);
+
+    if (routingContext == null) {
+      if (pathAValid) return [start, cornerA, end];
+      if (pathBValid) return [start, cornerB, end];
+    } else {
+      List<Offset>? bestBranchPath;
+      var bestBranchScore = double.infinity;
+
+      void consider(List<Offset> path) {
+        final score = _scorePath(
+          path,
+          routingContext!,
+          currentWireId,
+          softObstacleRects,
+        );
+        if (score < bestBranchScore) {
+          bestBranchScore = score;
+          bestBranchPath = path;
+        }
+      }
+
+      if (pathAValid) consider([start, cornerA, end]);
+      if (pathBValid) consider([start, cornerB, end]);
+
+      if (bestBranchPath != null && bestBranchScore.isFinite) {
+        return bestBranchPath!;
+      }
     }
   }
 
@@ -383,31 +1107,99 @@ List<Offset> computeWireRoute(Offset p1, Offset p2, ChipInstance? chip1,
 
   final candidates = _candidateColumns(start, end, dir1, dir2, exitMargin);
 
+  List<Offset>? bestPath;
+  var bestScore = double.infinity;
   for (final midX in candidates) {
-    final exit1X = (dir1 > 0)
-        ? max(start.dx + exitMargin, midX)
-        : min(start.dx - exitMargin, midX);
-    final exit2X = (dir2 > 0)
-        ? max(end.dx + exitMargin, midX)
-        : min(end.dx - exitMargin, midX);
+    final path = _buildPhase1Path(
+      start,
+      end,
+      dir1,
+      dir2,
+      midX,
+    );
+    if (!_pathClearOfChips(
+      path,
+      hardObstacleRects,
+      chipIds,
+      startSkipId: startSkipId,
+      endSkipId: endSkipId,
+    )) {
+      continue;
+    }
 
-    final exit1 = Offset(exit1X, start.dy);
-    final exit2 = Offset(exit2X, end.dy);
-    final corner1 = Offset(midX, start.dy);
-    final corner2 = Offset(midX, end.dy);
+    if (routingContext == null) {
+      return path;
+    }
 
-    if (!_segHitsChip(start, exit1, obstacleRects, chipIds, startSkipId) &&
-        !_segHitsChip(exit1, corner1, obstacleRects, chipIds, null) &&
-        !_segHitsChip(corner1, corner2, obstacleRects, chipIds, null) &&
-        !_segHitsChip(corner2, exit2, obstacleRects, chipIds, null) &&
-        !_segHitsChip(exit2, end, obstacleRects, chipIds, endSkipId)) {
-      return [start, exit1, corner1, corner2, exit2, end];
+    final score = _scorePath(
+      path,
+      routingContext,
+      currentWireId,
+      softObstacleRects,
+    );
+    if (score < bestScore) {
+      bestScore = score;
+      bestPath = path;
     }
   }
 
+  if (bestPath != null) {
+    return bestPath;
+  }
+
   // ── Phase 2: route around obstacles via top/bottom ──────────────
-  return _routeAround(
-      start, end, dir1, dir2, exitMargin, obstacleRects, chipIds);
+  final options = _routeAroundCandidates(
+      start, end, dir1, dir2, exitMargin, softObstacleRects, chipIds);
+  if (options.isEmpty) {
+    return _fallbackOrthogonalPath(
+      start,
+      end,
+      hardObstacleRects,
+      chipIds,
+      routingContext,
+      currentWireId,
+      softObstacleRects,
+      startSkipId: startSkipId,
+      endSkipId: endSkipId,
+    );
+  }
+  if (routingContext == null) {
+    return options.first;
+  }
+
+  var bestOption = options.first;
+  bestScore = _scorePath(
+    bestOption,
+    routingContext,
+    currentWireId,
+    softObstacleRects,
+  );
+  for (final option in options.skip(1)) {
+    final score = _scorePath(
+      option,
+      routingContext,
+      currentWireId,
+      softObstacleRects,
+    );
+    if (score < bestScore) {
+      bestScore = score;
+      bestOption = option;
+    }
+  }
+  if (bestScore.isInfinite) {
+    return _fallbackOrthogonalPath(
+      start,
+      end,
+      hardObstacleRects,
+      chipIds,
+      routingContext,
+      currentWireId,
+      softObstacleRects,
+      startSkipId: startSkipId,
+      endSkipId: endSkipId,
+    );
+  }
+  return bestOption;
 }
 
 /// Returns the branch point for a pin that already has wires connected.
@@ -419,6 +1211,7 @@ class CircuitPainter extends CustomPainter {
   final String? selectedWireId;
   final Offset? ghostWireStart; // circuit-coordinate start of ghost wire
   final Offset? ghostWireEnd; // circuit-coordinate end of ghost wire
+  final double zoomScale; // current view scale (1.0 = 100%)
 
   CircuitPainter({
     required this.circuit,
@@ -427,6 +1220,7 @@ class CircuitPainter extends CustomPainter {
     this.selectedWireId,
     this.ghostWireStart,
     this.ghostWireEnd,
+    this.zoomScale = 1.0,
   });
 
   @override
@@ -461,7 +1255,8 @@ class CircuitPainter extends CustomPainter {
         selectedChipId != oldDelegate.selectedChipId ||
         selectedWireId != oldDelegate.selectedWireId ||
         ghostWireStart != oldDelegate.ghostWireStart ||
-        ghostWireEnd != oldDelegate.ghostWireEnd;
+        ghostWireEnd != oldDelegate.ghostWireEnd ||
+        zoomScale != oldDelegate.zoomScale;
   }
 
   // ---- Grid ----
@@ -483,6 +1278,7 @@ class CircuitPainter extends CustomPainter {
 
   void _drawWires(Canvas canvas) {
     final pinPositions = circuit.allPinPositions;
+    var routingContext = WireRoutingContext.fromCircuit(circuit);
 
     // Group wires by pin to detect multi-wire pins that need branching
     final wiresForPin = <String, List<Wire>>{};
@@ -491,20 +1287,8 @@ class CircuitPainter extends CustomPainter {
       wiresForPin.putIfAbsent(wire.pinIdB, () => []).add(wire);
     }
 
-    // Pre-compute anchor vertical segments for multi-wire pins
+    // Anchor vertical segments are filled lazily as each wire is routed.
     final anchorVSegs = <String, VSegment?>{};
-    for (final entry in wiresForPin.entries) {
-      if (entry.value.length < 2) continue;
-      final anchorWire = entry.value.first;
-      final aPos = pinPositions[anchorWire.pinIdA];
-      final bPos = pinPositions[anchorWire.pinIdB];
-      if (aPos == null || bPos == null) continue;
-
-      final aChip = _chipForPinId(anchorWire.pinIdA);
-      final bChip = _chipForPinId(anchorWire.pinIdB);
-      final anchorPath = _computeOrthogonalPath(aPos, bPos, aChip, bChip);
-      anchorVSegs[entry.key] = findVerticalSegment(anchorPath);
-    }
 
     // Collect branch-point positions for drawing junction dots
     final branchDots = <String, Offset>{}; // pinId → branch-dot position
@@ -546,7 +1330,22 @@ class CircuitPainter extends CustomPainter {
       }
 
       final path = _computeOrthogonalPath(p1, p2, chip1, chip2,
-          overrideStart: overrideStart, overrideEnd: overrideEnd);
+          overrideStart: overrideStart,
+          overrideEnd: overrideEnd,
+          routingContext: routingContext,
+          currentWireId: wire.id);
+
+      // Remember the anchor's vertical segment for later branch wires.
+      if (pinAWires.isNotEmpty && pinAWires.first.id == wire.id) {
+        anchorVSegs[wire.pinIdA] = findVerticalSegment(path);
+      }
+      if (pinBWires.isNotEmpty && pinBWires.first.id == wire.id) {
+        anchorVSegs[wire.pinIdB] = findVerticalSegment(path);
+      }
+
+      // Later wires avoid this wire's optimized path, not its stale base
+      // path.
+      routingContext = routingContext.replacePath(wire.id, path);
 
       final isSelected = wire.id == selectedWireId;
       final color = isSelected ? AppTheme.wireSelected : _wireColor(wire);
@@ -587,9 +1386,15 @@ class CircuitPainter extends CustomPainter {
 
   List<Offset> _computeOrthogonalPath(
       Offset p1, Offset p2, ChipInstance? chip1, ChipInstance? chip2,
-      {Offset? overrideStart, Offset? overrideEnd}) {
+      {Offset? overrideStart,
+      Offset? overrideEnd,
+      WireRoutingContext? routingContext,
+      String? currentWireId}) {
     return computeWireRoute(p1, p2, chip1, chip2, circuit.chips,
-        overrideStart: overrideStart, overrideEnd: overrideEnd);
+        overrideStart: overrideStart,
+        overrideEnd: overrideEnd,
+        routingContext: routingContext,
+        currentWireId: currentWireId);
   }
 
   /// Determines color of a wire based on the signal state of connected outputs.
@@ -790,56 +1595,67 @@ class CircuitPainter extends CustomPainter {
   }
 
   void _drawInputSwitch(Canvas canvas, ChipInstance chip, Rect rect) {
-    final output = chip.pinStates.values.firstWhere(
-      (p) => p.direction == PinDirection.output,
-      orElse: () => chip.pinStates.values.first,
-    );
-    final isHigh = output.value == SignalState.high;
-    final inputChips =
-        circuit.chips.where((c) => c.definition.model == 'INPUT').toList();
-    final inputIndex = inputChips.indexWhere((c) => c.id == chip.id);
-    final inputName = 'IN${inputIndex + 1}';
+    final outputPins = chip.pinStates.values
+        .where((p) => p.direction == PinDirection.output)
+        .toList()
+      ..sort((a, b) => a.number.compareTo(b.number));
 
-    // Component label
-    final labelPainter = TextPainter(
-      text: TextSpan(
-        text: inputName,
-        style: _componentLabelStyle,
-      ),
-      textDirection: ui.TextDirection.ltr,
-    )..layout();
-    final labelCenterY = rect.center.dy - 12;
-    labelPainter.paint(
-      canvas,
-      Offset(
-        rect.center.dx - labelPainter.width / 2,
-        labelCenterY - labelPainter.height / 2,
-      ),
-    );
+    for (final pin in outputPins) {
+      final rowY = chip.pinPosition(pin.number).dy;
+      final name = _inputPinName(chip, pin.number);
+      final isHigh = pin.value == SignalState.high;
 
-    // Switch track
-    final trackCenterY = rect.center.dy + 18;
-    final trackRect = Rect.fromCenter(
-      center: Offset(rect.center.dx, trackCenterY),
-      width: 42,
-      height: 16,
-    );
-    final trackPaint = Paint()
-      ..color = isHigh
-          ? AppTheme.signalHigh.withValues(alpha: 0.25)
-          : AppTheme.textSecondary.withValues(alpha: 0.25);
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(trackRect, const Radius.circular(8)),
-      trackPaint,
-    );
+      final labelPainter = TextPainter(
+        text: TextSpan(
+          text: name,
+          style: _componentLabelStyle.copyWith(fontSize: 11),
+        ),
+        textDirection: ui.TextDirection.ltr,
+      )..layout();
+      labelPainter.paint(
+        canvas,
+        Offset(rect.left + 8, rowY - labelPainter.height / 2),
+      );
 
-    // Switch knob
-    final knobX = isHigh ? trackRect.right - 10 : trackRect.left + 10;
-    canvas.drawCircle(
-      Offset(knobX, trackCenterY),
-      9,
-      Paint()..color = isHigh ? AppTheme.signalHigh : AppTheme.textSecondary,
-    );
+      final trackRect = Rect.fromCenter(
+        center: Offset(rect.center.dx + 2, rowY),
+        width: 30,
+        height: 10,
+      );
+      final trackPaint = Paint()
+        ..color = isHigh
+            ? AppTheme.signalHigh.withValues(alpha: 0.25)
+            : AppTheme.textSecondary.withValues(alpha: 0.25);
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(trackRect, const Radius.circular(5)),
+        trackPaint,
+      );
+
+      final knobX = isHigh ? trackRect.right - 7 : trackRect.left + 7;
+      canvas.drawCircle(
+        Offset(knobX, rowY),
+        6,
+        Paint()..color = isHigh ? AppTheme.signalHigh : AppTheme.textSecondary,
+      );
+    }
+  }
+
+  String _inputPinName(ChipInstance chip, int pinNumber) {
+    var number = 1;
+    for (final candidate in circuit.chips) {
+      if (candidate.definition.model != 'INPUT') continue;
+      final pins = candidate.pinStates.values
+          .where((p) => p.direction == PinDirection.output)
+          .toList()
+        ..sort((a, b) => a.number.compareTo(b.number));
+      for (final pin in pins) {
+        if (candidate.id == chip.id && pin.number == pinNumber) {
+          return 'IN$number';
+        }
+        number++;
+      }
+    }
+    return 'IN?';
   }
 
   void _drawLED(Canvas canvas, ChipInstance chip, Rect rect) {
@@ -937,25 +1753,60 @@ class CircuitPainter extends CustomPainter {
           ..strokeWidth = 1.0,
       );
 
-      // Pin label (outside the chip)
+      // Pin labels:
+      // - Pin number: always shown, inside the chip body next to the pin dot.
+      // - Function name: shown once the view is zoomed in enough, outside the
+      //   chip but hugging the pin. Both are lifted above the pin so the
+      //   horizontal wire lead-out at the pin's Y stays clear.
       final isLeft = pos.dx < chip.rect.center.dx;
-      final labelPainter = TextPainter(
+      final showPinName = zoomScale >= _pinNameZoomThreshold;
+
+      const labelGapX = 6.0; // horizontal gap from the pin dot edge
+      const labelOffsetY = 8.0; // vertical lift above the pin center
+
+      final numberPainter = TextPainter(
         text: TextSpan(
-          text: pinState.label,
+          text: '$pinNumber',
           style: TextStyle(
-            color: AppTheme.textSecondary,
-            fontSize: 9,
-            fontWeight: isPinSelected ? FontWeight.bold : FontWeight.normal,
+            color: AppTheme.textPrimary,
+            fontSize: 10,
+            fontWeight: isPinSelected ? FontWeight.w800 : FontWeight.w600,
           ),
         ),
         textDirection: ui.TextDirection.ltr,
-      );
-      labelPainter.layout();
-      final labelX = isLeft ? pos.dx - 8 - labelPainter.width : pos.dx + 8;
-      labelPainter.paint(
+      )..layout();
+
+      final numberX = isLeft
+          ? pos.dx + labelGapX
+          : pos.dx - labelGapX - numberPainter.width;
+      numberPainter.paint(
         canvas,
-        Offset(labelX, pos.dy - labelPainter.height / 2),
+        Offset(
+            numberX, pos.dy - labelOffsetY - numberPainter.height / 2),
       );
+
+      if (showPinName && pinState.label.isNotEmpty) {
+        final namePainter = TextPainter(
+          text: TextSpan(
+            text: pinState.label,
+            style: const TextStyle(
+              color: AppTheme.textSecondary,
+              fontSize: 8,
+              fontWeight: FontWeight.w400,
+            ),
+          ),
+          textDirection: ui.TextDirection.ltr,
+        )..layout();
+
+        final nameX = isLeft
+            ? pos.dx - labelGapX - namePainter.width
+            : pos.dx + labelGapX;
+        namePainter.paint(
+          canvas,
+          Offset(
+              nameX, pos.dy - labelOffsetY - namePainter.height / 2),
+        );
+      }
     }
   }
 

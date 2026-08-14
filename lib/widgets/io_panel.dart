@@ -8,6 +8,18 @@ import '../engine/simulation_engine.dart';
 import '../providers/simulation_provider.dart';
 import '../theme/dark_theme.dart';
 
+class _InputControl {
+  final ChipInstance chip;
+  final PinState pin;
+  final String name;
+
+  const _InputControl({
+    required this.chip,
+    required this.pin,
+    required this.name,
+  });
+}
+
 /// Right panel showing input switches and output LEDs.
 class IOPanel extends ConsumerWidget {
   const IOPanel({super.key});
@@ -17,9 +29,24 @@ class IOPanel extends ConsumerWidget {
     final circuit = ref.watch(circuitProvider);
     final engine = ref.watch(simulationEngineProvider);
 
-    // Find switches and LEDs among the chips
-    final switches =
-        circuit.chips.where((c) => c.definition.model == 'INPUT').toList();
+    // Flatten each dual-input component into IN1/IN2 controls while keeping
+    // the same global numbering used by the canvas.
+    final inputControls = <_InputControl>[];
+    var inputNumber = 1;
+    for (final chip in circuit.chips) {
+      if (chip.definition.model != 'INPUT') continue;
+      final outputPins = chip.pinStates.values
+          .where((p) => p.direction == PinDirection.output)
+          .toList()
+        ..sort((a, b) => a.number.compareTo(b.number));
+      for (final pin in outputPins) {
+        inputControls.add(_InputControl(
+          chip: chip,
+          pin: pin,
+          name: 'IN${inputNumber++}',
+        ));
+      }
+    }
     final leds =
         circuit.chips.where((c) => c.definition.model == 'LED').toList();
 
@@ -65,7 +92,7 @@ class IOPanel extends ConsumerWidget {
           ),
           Expanded(
             flex: 1,
-            child: switches.isEmpty
+            child: inputControls.isEmpty
                 ? const Center(
                     child: Text(
                       'No switches\nTap + to add',
@@ -76,12 +103,11 @@ class IOPanel extends ConsumerWidget {
                   )
                 : ListView.builder(
                     padding: const EdgeInsets.symmetric(horizontal: 8),
-                    itemCount: switches.length,
+                    itemCount: inputControls.length,
                     itemBuilder: (context, index) {
                       return _SwitchWidget(
-                        chip: switches[index],
+                        control: inputControls[index],
                         engine: engine,
-                        name: 'IN${index + 1}',
                       );
                     },
                   ),
@@ -128,7 +154,7 @@ class IOPanel extends ConsumerWidget {
         .chips
         .where((c) => c.definition.model == 'INPUT')
         .length;
-    notifier.addChip('INPUT', Offset(120, 140 + count * 100.0));
+    notifier.addChip('INPUT', Offset(120, 140 + count * 120.0));
   }
 
   void _addLED(WidgetRef ref) {
@@ -138,7 +164,7 @@ class IOPanel extends ConsumerWidget {
         .chips
         .where((c) => c.definition.model == 'LED')
         .length;
-    notifier.addChip('LED', Offset(720, 140 + count * 100.0));
+    notifier.addChip('LED', Offset(720, 140 + count * 120.0));
   }
 }
 
@@ -181,24 +207,15 @@ class _SectionHeader extends StatelessWidget {
 }
 
 class _SwitchWidget extends ConsumerWidget {
-  final ChipInstance chip;
+  final _InputControl control;
   final SimulationEngine engine;
-  final String name;
 
-  const _SwitchWidget({
-    required this.chip,
-    required this.engine,
-    required this.name,
-  });
+  const _SwitchWidget({required this.control, required this.engine});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // A switch drives its output pin; use that pin as the controlled signal.
-    final switchPin = chip.pinStates.values.firstWhere(
-      (p) => p.direction == PinDirection.output,
-      orElse: () => chip.pinStates.values.first,
-    );
-    final pinId = chip.pinId(switchPin.number);
+    final switchPin = control.pin;
+    final pinId = control.chip.pinId(switchPin.number);
 
     return Card(
       margin: const EdgeInsets.only(bottom: 4),
@@ -217,7 +234,7 @@ class _SwitchWidget extends ConsumerWidget {
             const SizedBox(width: 8),
             Expanded(
               child: Text(
-                name,
+                control.name,
                 style:
                     const TextStyle(color: AppTheme.textPrimary, fontSize: 11),
               ),

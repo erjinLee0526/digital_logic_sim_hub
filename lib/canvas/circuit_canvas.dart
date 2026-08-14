@@ -32,6 +32,18 @@ class _CircuitCanvasState extends ConsumerState<CircuitCanvas> {
   String? _draggedChipId; // non-null when dragging a chip
 
   @override
+  void initState() {
+    super.initState();
+    // Rebuild when the zoom changes so the painter can switch between
+    // number-only and number+name pin labels.
+    _transformController.addListener(_onTransformChanged);
+  }
+
+  void _onTransformChanged() {
+    setState(() {});
+  }
+
+  @override
   void dispose() {
     _transformController.dispose();
     super.dispose();
@@ -45,6 +57,7 @@ class _CircuitCanvasState extends ConsumerState<CircuitCanvas> {
     final selectedChipId = ref.watch(selectedChipProvider);
     final selectedWireId = ref.watch(selectedWireProvider);
     final mousePos = ref.watch(mouseCircuitPositionProvider);
+    final zoomScale = _transformController.value.getMaxScaleOnAxis();
 
     // Calculate ghost wire endpoints
     Offset? ghostStart;
@@ -101,6 +114,7 @@ class _CircuitCanvasState extends ConsumerState<CircuitCanvas> {
               selectedWireId: selectedWireId,
               ghostWireStart: ghostStart,
               ghostWireEnd: ghostEnd,
+              zoomScale: zoomScale,
             ),
             size: const Size(10000, 10000),
           ),
@@ -153,7 +167,7 @@ class _CircuitCanvasState extends ConsumerState<CircuitCanvas> {
     } else if (hit.target == HitTarget.chipBody && hit.chipId != null) {
       final chip = ref.read(circuitProvider).chipById(hit.chipId!);
       if (chip?.definition.model == 'INPUT') {
-        _toggleInputSwitch(hit.chipId!);
+        _toggleInputSwitch(hit.chipId!, hit.circuitPoint);
         return;
       }
       ref.read(selectedChipProvider.notifier).state = hit.chipId;
@@ -171,15 +185,21 @@ class _CircuitCanvasState extends ConsumerState<CircuitCanvas> {
     }
   }
 
-  void _toggleInputSwitch(String chipId) {
+  void _toggleInputSwitch(String chipId, Offset point) {
     final circuit = ref.read(circuitProvider);
     final chip = circuit.chipById(chipId);
     if (chip == null) return;
 
-    final switchPin = chip.pinStates.values.firstWhere(
-      (p) => p.direction == PinDirection.output,
-      orElse: () => chip.pinStates.values.first,
-    );
+    final outputPins = chip.pinStates.values
+        .where((p) => p.direction == PinDirection.output)
+        .toList();
+    if (outputPins.isEmpty) return;
+
+    final switchPin = outputPins.reduce((a, b) {
+      final aDistance = (chip.pinPosition(a.number).dy - point.dy).abs();
+      final bDistance = (chip.pinPosition(b.number).dy - point.dy).abs();
+      return aDistance <= bDistance ? a : b;
+    });
     final engine = ref.read(simulationEngineProvider);
 
     engine.rebuild(circuit);

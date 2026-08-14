@@ -69,6 +69,7 @@ HitTestResult hitTest(Offset point, Circuit circuit,
 
   // 3. Check wires (using orthogonal path segments)
   final pinPositions = circuit.allPinPositions;
+  var routingContext = WireRoutingContext.fromCircuit(circuit);
 
   // Group wires by pin to detect multi-wire pins (branch points)
   final wiresForPin = <String, List<Wire>>{};
@@ -77,20 +78,8 @@ HitTestResult hitTest(Offset point, Circuit circuit,
     wiresForPin.putIfAbsent(wire.pinIdB, () => []).add(wire);
   }
 
-  // Pre-compute anchor vertical segments for multi-wire pins
+  // Anchor vertical segments are filled lazily as each wire is routed.
   final anchorVSegs = <String, VSegment?>{};
-  for (final entry in wiresForPin.entries) {
-    if (entry.value.length < 2) continue;
-    final anchorWire = entry.value.first;
-    final aPos = pinPositions[anchorWire.pinIdA];
-    final bPos = pinPositions[anchorWire.pinIdB];
-    if (aPos == null || bPos == null) continue;
-
-    final aChip = _chipForPinId(anchorWire.pinIdA, circuit);
-    final bChip = _chipForPinId(anchorWire.pinIdB, circuit);
-    final anchorPath = computeWireRoute(aPos, bPos, aChip, bChip, circuit.chips);
-    anchorVSegs[entry.key] = findVerticalSegment(anchorPath);
-  }
 
   for (final wire in circuit.wires) {
     final p1 = pinPositions[wire.pinIdA];
@@ -126,7 +115,19 @@ HitTestResult hitTest(Offset point, Circuit circuit,
     }
 
     final path = computeWireRoute(p1, p2, chip1, chip2, circuit.chips,
-        overrideStart: overrideStart, overrideEnd: overrideEnd);
+        overrideStart: overrideStart,
+        overrideEnd: overrideEnd,
+        routingContext: routingContext,
+        currentWireId: wire.id);
+
+    if (pinAWires.isNotEmpty && pinAWires.first.id == wire.id) {
+      anchorVSegs[wire.pinIdA] = findVerticalSegment(path);
+    }
+    if (pinBWires.isNotEmpty && pinBWires.first.id == wire.id) {
+      anchorVSegs[wire.pinIdB] = findVerticalSegment(path);
+    }
+
+    routingContext = routingContext.replacePath(wire.id, path);
 
     // Check distance to each segment of the orthogonal path
     if (_pointNearPath(point, path, tolerance: 10.0)) {

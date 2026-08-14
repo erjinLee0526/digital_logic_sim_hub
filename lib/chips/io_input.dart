@@ -4,16 +4,16 @@ import '../models/chip_definition.dart';
 import '../models/pin.dart';
 import '../models/signal_state.dart';
 
-/// A user-controlled input switch.
+/// A compact dual-input switch block.
 ///
 /// Unlike 74-series logic chips, this component has no VCC/GND pins and
-/// simply drives its single output pin to high or low.
+/// directly drives two output pins, IN1 and IN2, high or low.
 class ChipInput extends ChipDefinition {
   @override
   String get model => 'INPUT';
 
   @override
-  String get description => 'Input Switch';
+  String get description => 'Dual Input Switch';
 
   @override
   int get propagationDelayPs => 0;
@@ -26,12 +26,14 @@ class ChipInput extends ChipDefinition {
 
   @override
   List<PinDefinition> get pinDefinitions => const [
-        PinDefinition(number: 1, label: 'OUT', direction: PinDirection.output),
+        PinDefinition(number: 1, label: 'IN1', direction: PinDirection.output),
+        PinDefinition(number: 2, label: 'IN2', direction: PinDirection.output),
       ];
 
   @override
   Map<int, Offset> get pinRelativePositions => const {
-        1: Offset(40, 0),
+        1: Offset(40, -16),
+        2: Offset(40, 16),
       };
 
   @override
