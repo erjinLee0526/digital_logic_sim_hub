@@ -13,7 +13,12 @@ class ChipLED extends ChipDefinition {
   String get model => 'LED';
 
   @override
-  String get description => 'Output LED';
+  String get description => '输出指示灯';
+
+  @override
+  String get functionSummary =>
+      '单输入指示灯：输入为高电平时点亮，输入为低电平时熄灭，用于观察'
+      '电路中某一点的逻辑电平。';
 
   @override
   int get propagationDelayPs => 0;
@@ -35,7 +40,10 @@ class ChipLED extends ChipDefinition {
       };
 
   @override
-  Map<int, SignalState> evaluate(Map<int, SignalState> inputStates) {
+  Map<int, SignalState> evaluate(
+    Map<int, SignalState> inputStates, {
+    Map<String, SignalState>? internalState,
+  }) {
     // LEDs only observe their input; they do not produce logic outputs.
     return const {};
   }

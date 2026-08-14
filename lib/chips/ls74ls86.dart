@@ -2,14 +2,14 @@ import '../models/chip_definition.dart';
 import '../models/pin.dart';
 import '../models/signal_state.dart';
 
-/// 74LS00 — Quad 2-Input NAND Gate (DIP-14).
+/// 74LS86 - Quad 2-Input XOR (Exclusive-OR) Gate (DIP-14).
 ///
 /// Pin layout (top view, notch up):
 /// ```
 ///         +---\/---+
 ///   1A  1 |        | 14  VCC
 ///   1B  2 |        | 13  4B
-///   1Y  3 | 74LS00 | 12  4A
+///   1Y  3 | 74LS86 | 12  4A
 ///   2A  4 |        | 11  4Y
 ///   2B  5 |        | 10  3B
 ///   2Y  6 |        | 9   3A
@@ -17,22 +17,22 @@ import '../models/signal_state.dart';
 /// ```
 ///
 /// Gate mapping:
-///   Gate 1: 1A(1) + 1B(2) → 1Y(3)
-///   Gate 2: 2A(4) + 2B(5) → 2Y(6)
-///   Gate 3: 3A(9) + 3B(10) → 3Y(8)
-///   Gate 4: 4A(12) + 4B(13) → 4Y(11)
+///   Gate 1: 1A(1) + 1B(2) -> 1Y(3)
+///   Gate 2: 2A(4) + 2B(5) -> 2Y(6)
+///   Gate 3: 3A(9) + 3B(10) -> 3Y(8)
+///   Gate 4: 4A(12) + 4B(13) -> 4Y(11)
 ///   Power: VCC(14), GND(7)
-class Chip74LS00 extends ChipDefinition {
+class Chip74LS86 extends ChipDefinition {
   @override
-  String get model => '74LS00';
+  String get model => '74LS86';
 
   @override
-  String get description => '4 路\n2 输入\n与非门';
+  String get description => '4 路\n2 输入\n异或门';
 
   @override
   String get functionSummary =>
-      '内含四个独立的 2 输入与非门：只有当两个输入都为高电平时，输出才为'
-      '低电平；其余情况输出均为高电平。';
+      '内含四个独立的 2 输入异或门：当两个输入电平不同时输出高电平，'
+      '两个输入电平相同时输出低电平。';
 
   @override
   int get propagationDelayPs => 10000; // ~10ns typical
@@ -47,7 +47,7 @@ class Chip74LS00 extends ChipDefinition {
   List<PinDefinition> get pinDefinitions => _pins;
 
   static const _pins = [
-    // Left side (pins 1–7)
+    // Left side (pins 1-7)
     PinDefinition(number: 1, label: '1A', direction: PinDirection.input),
     PinDefinition(number: 2, label: '1B', direction: PinDirection.input),
     PinDefinition(number: 3, label: '1Y', direction: PinDirection.output),
@@ -55,7 +55,7 @@ class Chip74LS00 extends ChipDefinition {
     PinDefinition(number: 5, label: '2B', direction: PinDirection.input),
     PinDefinition(number: 6, label: '2Y', direction: PinDirection.output),
     PinDefinition(number: 7, label: 'GND', direction: PinDirection.ground),
-    // Right side (pins 14–8)
+    // Right side (pins 14-8)
     PinDefinition(number: 14, label: 'VCC', direction: PinDirection.power),
     PinDefinition(number: 13, label: '4B', direction: PinDirection.input),
     PinDefinition(number: 12, label: '4A', direction: PinDirection.input),
@@ -79,14 +79,14 @@ class Chip74LS00 extends ChipDefinition {
     Map<String, SignalState>? internalState,
   }) {
     return {
-      // Gate 1: pins 1,2 → pin 3
-      3: _nand(_val(1, inputStates), _val(2, inputStates)),
-      // Gate 2: pins 4,5 → pin 6
-      6: _nand(_val(4, inputStates), _val(5, inputStates)),
-      // Gate 3: pins 9,10 → pin 8
-      8: _nand(_val(9, inputStates), _val(10, inputStates)),
-      // Gate 4: pins 12,13 → pin 11
-      11: _nand(_val(12, inputStates), _val(13, inputStates)),
+      // Gate 1: pins 1,2 -> pin 3
+      3: _xor(_val(1, inputStates), _val(2, inputStates)),
+      // Gate 2: pins 4,5 -> pin 6
+      6: _xor(_val(4, inputStates), _val(5, inputStates)),
+      // Gate 3: pins 9,10 -> pin 8
+      8: _xor(_val(9, inputStates), _val(10, inputStates)),
+      // Gate 4: pins 12,13 -> pin 11
+      11: _xor(_val(12, inputStates), _val(13, inputStates)),
     };
   }
 
@@ -94,7 +94,7 @@ class Chip74LS00 extends ChipDefinition {
     return states[pinNum] ?? SignalState.unknown;
   }
 
-  static SignalState _nand(SignalState a, SignalState b) {
-    return SignalState.nand(a, b);
+  static SignalState _xor(SignalState a, SignalState b) {
+    return SignalState.xor(a, b);
   }
 }

@@ -9,13 +9,16 @@ class ChipInstance {
   final ChipDefinition definition;
   Offset position; // center position in circuit coordinates
   final Map<int, PinState> pinStates; // pin number → state
+  final Map<String, SignalState> internalState;
 
   ChipInstance({
     required this.id,
     required this.definition,
     required this.position,
     Map<int, PinState>? pinStates,
-  }) : pinStates = pinStates ?? _createPinStates(definition);
+    Map<String, SignalState>? internalState,
+  })  : pinStates = pinStates ?? _createPinStates(definition),
+        internalState = internalState ?? _createInternalState(definition);
 
   static Map<int, PinState> _createPinStates(ChipDefinition def) {
     final map = <int, PinState>{};
@@ -39,6 +42,17 @@ class ChipInstance {
       default:
         return SignalState.unknown;
     }
+  }
+
+  static Map<String, SignalState> _createInternalState(ChipDefinition def) {
+    return Map<String, SignalState>.of(def.initialState);
+  }
+
+  /// Restores the chip's internal state to its definition defaults.
+  void resetInternalState() {
+    internalState
+      ..clear()
+      ..addAll(definition.initialState);
   }
 
   /// The bounding rectangle of the chip in circuit coordinates.
@@ -68,12 +82,17 @@ class ChipInstance {
   /// Returns a unique string ID for a pin (used for wire endpoints).
   String pinId(int pinNumber) => '${id}_$pinNumber';
 
-  ChipInstance copyWith({Offset? position, Map<int, PinState>? pinStates}) {
+  ChipInstance copyWith({
+    Offset? position,
+    Map<int, PinState>? pinStates,
+    Map<String, SignalState>? internalState,
+  }) {
     return ChipInstance(
       id: id,
       definition: definition,
       position: position ?? this.position,
       pinStates: pinStates ?? this.pinStates,
+      internalState: internalState ?? this.internalState,
     );
   }
 }

@@ -2,6 +2,14 @@ import '../models/chip_definition.dart';
 import 'io_input.dart';
 import 'io_led.dart';
 import 'ls74ls00.dart';
+import 'ls74ls02.dart';
+import 'ls74ls04.dart';
+import 'ls74ls08.dart';
+import 'ls74ls32.dart';
+import 'ls74ls74.dart';
+import 'ls74ls86.dart';
+import 'ls74ls136.dart';
+import 'ls74ls266.dart';
 
 /// Registry of all available chip types.
 /// To add a new 74LS chip:
@@ -11,6 +19,14 @@ import 'ls74ls00.dart';
 class ChipFactory {
   static final Map<String, ChipDefinition Function()> _registry = {
     '74LS00': () => Chip74LS00(),
+    '74LS02': () => Chip74LS02(),
+    '74LS04': () => Chip74LS04(),
+    '74LS08': () => Chip74LS08(),
+    '74LS32': () => Chip74LS32(),
+    '74LS74': () => Chip74LS74(),
+    '74LS86': () => Chip74LS86(),
+    '74LS136': () => Chip74LS136(),
+    '74LS266': () => Chip74LS266(),
     'INPUT': () => ChipInput(),
     'LED': () => ChipLED(),
   };

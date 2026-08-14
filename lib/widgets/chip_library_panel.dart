@@ -5,6 +5,7 @@ import '../chips/chip_factory.dart';
 import '../models/chip_definition.dart';
 import '../providers/circuit_provider.dart';
 import '../theme/dark_theme.dart';
+import 'chip_manual.dart';
 
 /// Side panel for searching and adding chips to the canvas.
 class ChipLibraryPanel extends ConsumerStatefulWidget {
@@ -58,7 +59,7 @@ class _ChipLibraryPanelState extends ConsumerState<ChipLibraryPanel> {
               ),
             ),
             child: const Text(
-              'Chip Library',
+              '芯片库',
               style: TextStyle(
                 color: AppTheme.textPrimary,
                 fontSize: 14,
@@ -76,7 +77,7 @@ class _ChipLibraryPanelState extends ConsumerState<ChipLibraryPanel> {
               style: const TextStyle(
                   color: AppTheme.textPrimary, fontSize: 13),
               decoration: InputDecoration(
-                hintText: 'Search chips...',
+                hintText: '搜索芯片...',
                 hintStyle: const TextStyle(
                     color: AppTheme.textSecondary, fontSize: 12),
                 prefixIcon: const Icon(Icons.search,
@@ -95,10 +96,10 @@ class _ChipLibraryPanelState extends ConsumerState<ChipLibraryPanel> {
 
           // Chip list
           Expanded(
-            child: chips.isEmpty
+              child: chips.isEmpty
                 ? const Center(
                     child: Text(
-                      'No chips found',
+                      '未找到芯片',
                       style: TextStyle(
                           color: AppTheme.textSecondary, fontSize: 12),
                     ),
@@ -185,7 +186,7 @@ class _ChipLibraryTile extends ConsumerWidget {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      '${definition.pinDefinitions.length} pins  |  Delay: ${definition.propagationDelayPs ~/ 1000}ns',
+                      '${definition.pinDefinitions.length} 引脚  |  延迟 ${definition.propagationDelayPs ~/ 1000}ns',
                       style: const TextStyle(
                         color: AppTheme.textSecondary,
                         fontSize: 9,
@@ -194,6 +195,19 @@ class _ChipLibraryTile extends ConsumerWidget {
                   ],
                 ),
               ),
+              Tooltip(
+                message: '查看数据手册',
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(4),
+                  onTap: () => showChipManual(context, definition),
+                  child: const Padding(
+                    padding: EdgeInsets.all(4),
+                    child: Icon(Icons.info_outline,
+                        size: 18, color: AppTheme.accent),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 4),
               const Icon(Icons.add_circle_outline,
                   size: 20, color: AppTheme.accentGreen),
             ],

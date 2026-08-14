@@ -13,7 +13,12 @@ class ChipInput extends ChipDefinition {
   String get model => 'INPUT';
 
   @override
-  String get description => 'Dual Input Switch';
+  String get description => '双路输入开关';
+
+  @override
+  String get functionSummary =>
+      '手动输入器件，可分别将 IN1、IN2 两个输出引脚直接驱动为高电平或'
+      '低电平，用于向电路提供 0/1 信号。';
 
   @override
   int get propagationDelayPs => 0;
@@ -37,7 +42,10 @@ class ChipInput extends ChipDefinition {
       };
 
   @override
-  Map<int, SignalState> evaluate(Map<int, SignalState> inputStates) {
+  Map<int, SignalState> evaluate(
+    Map<int, SignalState> inputStates, {
+    Map<String, SignalState>? internalState,
+  }) {
     // Switches are driven by the user, not by logic evaluation.
     return const {};
   }

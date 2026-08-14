@@ -12,7 +12,7 @@ void main() {
     );
 
     expect(find.text('LogicSim'), findsOneWidget);
-    expect(find.text('Chip Library'), findsOneWidget);
+    expect(find.text('芯片库'), findsOneWidget);
     expect(find.text('I/O Panel'), findsOneWidget);
   });
 }

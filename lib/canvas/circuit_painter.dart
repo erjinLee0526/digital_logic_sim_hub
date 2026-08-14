@@ -155,8 +155,7 @@ class WireRoutingContext {
     for (final geometry in _geometries) {
       if (excludeWireId != null && geometry.wireId == excludeWireId) continue;
       if (currentNetId != null && geometry.netId == currentNetId) continue;
-      final overlap =
-          _countPathOverlapLength(candidatePath, geometry.path);
+      final overlap = _countPathOverlapLength(candidatePath, geometry.path);
       if (overlap > maxLength) maxLength = overlap;
     }
     return maxLength;
@@ -350,9 +349,8 @@ double _scorePath(
   // A same-direction overlap longer than one grid cell is treated as a
   // near-forbidden item, so candidates with shorter overlaps win unless
   // no clean path exists at all.
-  final overlapPenalty = overlapGrids <= 1.0
-      ? overlapGrids * 500.0
-      : overlapGrids * 100000.0;
+  final overlapPenalty =
+      overlapGrids <= 1.0 ? overlapGrids * 500.0 : overlapGrids * 100000.0;
   final softOverlapLength =
       _countPathInsideRectsLength(path, softObstacleRects);
   final softPenalty = softOverlapLength / kGridUnit * 40.0;
@@ -756,9 +754,8 @@ List<Offset> _simplifyGridPath(List<Offset> path) {
     final current = path[i];
     final next = path[i + 1];
     if (current == previous) continue;
-    final straight =
-        (previous.dx == current.dx && current.dx == next.dx) ||
-            (previous.dy == current.dy && current.dy == next.dy);
+    final straight = (previous.dx == current.dx && current.dx == next.dx) ||
+        (previous.dy == current.dy && current.dy == next.dy);
     if (!straight) result.add(current);
   }
   result.add(path.last);
@@ -895,10 +892,7 @@ List<Offset> _fallbackOrthogonalPath(
       for (final direction in directions) {
         final nextX = currentX + direction[0];
         final nextY = currentY + direction[1];
-        if (nextX < minX ||
-            nextX > maxX ||
-            nextY < minY ||
-            nextY > maxY) {
+        if (nextX < minX || nextX > maxX || nextY < minY || nextY > maxY) {
           continue;
         }
 
@@ -1585,7 +1579,7 @@ class CircuitPainter extends CustomPainter {
         canvas,
         Offset(
           rect.center.dx - descPainter.width / 2,
-          rect.top + 40,
+          rect.top + 44,
         ),
       );
     }
@@ -1781,8 +1775,7 @@ class CircuitPainter extends CustomPainter {
           : pos.dx - labelGapX - numberPainter.width;
       numberPainter.paint(
         canvas,
-        Offset(
-            numberX, pos.dy - labelOffsetY - numberPainter.height / 2),
+        Offset(numberX, pos.dy - labelOffsetY - numberPainter.height / 2),
       );
 
       if (showPinName && pinState.label.isNotEmpty) {
@@ -1803,8 +1796,7 @@ class CircuitPainter extends CustomPainter {
             : pos.dx + labelGapX;
         namePainter.paint(
           canvas,
-          Offset(
-              nameX, pos.dy - labelOffsetY - namePainter.height / 2),
+          Offset(nameX, pos.dy - labelOffsetY - namePainter.height / 2),
         );
       }
     }

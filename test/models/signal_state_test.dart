@@ -100,5 +100,48 @@ void main() {
             SignalState.unknown);
       });
     });
+
+    group('XNOR', () {
+      test('0 XNOR 0 = 1', () {
+        expect(SignalState.xnor(SignalState.low, SignalState.low),
+            SignalState.high);
+      });
+      test('0 XNOR 1 = 0', () {
+        expect(SignalState.xnor(SignalState.low, SignalState.high),
+            SignalState.low);
+      });
+      test('1 XNOR 0 = 0', () {
+        expect(SignalState.xnor(SignalState.high, SignalState.low),
+            SignalState.low);
+      });
+      test('1 XNOR 1 = 1', () {
+        expect(SignalState.xnor(SignalState.high, SignalState.high),
+            SignalState.high);
+      });
+      test('X XNOR 0 = X', () {
+        expect(SignalState.xnor(SignalState.unknown, SignalState.low),
+            SignalState.unknown);
+      });
+      test('Z XNOR 0 = X', () {
+        expect(
+            SignalState.xnor(SignalState.highZ, SignalState.low),
+            SignalState.unknown);
+      });
+    });
+
+    group('NOR with highZ', () {
+      test('Z NOR 0 = X', () {
+        expect(SignalState.nor(SignalState.highZ, SignalState.low),
+            SignalState.unknown);
+      });
+      test('Z NOR 1 = X', () {
+        expect(SignalState.nor(SignalState.highZ, SignalState.high),
+            SignalState.unknown);
+      });
+      test('1 NOR X = 0 (dominating input)', () {
+        expect(SignalState.nor(SignalState.high, SignalState.unknown),
+            SignalState.low);
+      });
+    });
   });
 }

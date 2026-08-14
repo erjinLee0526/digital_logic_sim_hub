@@ -60,12 +60,12 @@ enum SignalState {
 
   /// NAND gate: NOT (A AND B)
   static SignalState nand(SignalState a, SignalState b) {
+    // highZ on either input → unknown (a floating input is not a valid level)
+    if (a == highZ || b == highZ) return unknown;
     // 0 NAND anything = 1
     if (a == low || b == low) return high;
     // 1 NAND 1 = 0
     if (a == high && b == high) return low;
-    // highZ on either input → unknown
-    if (a == highZ || b == highZ) return unknown;
     // remaining cases involve unknown → unknown
     return unknown;
   }
@@ -77,12 +77,12 @@ enum SignalState {
 
   /// NOR gate: NOT (A OR B)
   static SignalState nor(SignalState a, SignalState b) {
+    // highZ on either input → unknown (a floating input is not a valid level)
+    if (a == highZ || b == highZ) return unknown;
     // 1 NOR anything = 0
     if (a == high || b == high) return low;
     // 0 NOR 0 = 1
     if (a == low && b == low) return high;
-    // highZ on either input → unknown
-    if (a == highZ || b == highZ) return unknown;
     return unknown;
   }
 
@@ -95,6 +95,11 @@ enum SignalState {
   static SignalState xor(SignalState a, SignalState b) {
     if (!a.isDriven || !b.isDriven) return unknown;
     return SignalState.fromBool(a != b);
+  }
+
+  /// XNOR gate: NOT (A XOR B)
+  static SignalState xnor(SignalState a, SignalState b) {
+    return xor(a, b).not();
   }
 
   /// NOT (inverter)

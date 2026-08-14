@@ -155,8 +155,7 @@ class SimulationEngine {
     }
   }
 
-  void _evaluateChip(
-      ChipInstance chip, int baseTimePs, List<String> changed) {
+  void _evaluateChip(ChipInstance chip, int baseTimePs, List<String> changed) {
     // Collect current input states
     final inputStates = <int, SignalState>{};
     for (final pin in chip.pinStates.values) {
@@ -164,7 +163,10 @@ class SimulationEngine {
     }
 
     // Evaluate
-    final outputs = chip.definition.evaluate(inputStates);
+    final outputs = chip.definition.evaluate(
+      inputStates,
+      internalState: chip.internalState,
+    );
 
     // Schedule output changes
     for (final entry in outputs.entries) {
@@ -188,6 +190,7 @@ class SimulationEngine {
     _eventQueue.clear();
     _currentTimePs = 0;
     for (final chip in _chips.values) {
+      chip.resetInternalState();
       for (final pin in chip.pinStates.values) {
         if (pin.direction == PinDirection.power) {
           pin.value = SignalState.high;
