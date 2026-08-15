@@ -27,6 +27,8 @@ class CircuitEditorScreen extends ConsumerStatefulWidget {
 class _CircuitEditorScreenState extends ConsumerState<CircuitEditorScreen> {
   late final TextEditingController _filenameController =
       TextEditingController(text: widget.initialFilename);
+  bool _chipDrawerOpen = true;
+  bool _ioDrawerOpen = false;
 
   @override
   void dispose() {
@@ -46,7 +48,13 @@ class _CircuitEditorScreenState extends ConsumerState<CircuitEditorScreen> {
             children: [
               _GlassHeader(
                 filenameController: _filenameController,
+                chipsOpen: _chipDrawerOpen,
+                ioOpen: _ioDrawerOpen,
                 onBack: () => Navigator.of(context).maybePop(),
+                onToggleChips: () =>
+                    setState(() => _chipDrawerOpen = !_chipDrawerOpen),
+                onToggleIO: () =>
+                    setState(() => _ioDrawerOpen = !_ioDrawerOpen),
                 onNew: _newCircuit,
                 onSave: _saveCircuit,
                 onLoad: _loadCircuit,
@@ -54,50 +62,88 @@ class _CircuitEditorScreenState extends ConsumerState<CircuitEditorScreen> {
               ),
               Expanded(
                 child: Padding(
-                  padding: const EdgeInsets.all(12),
-                  child: Row(
+                  padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
+                  child: Stack(
                     children: [
-                      // Left: chip library
-                      const ChipLibraryPanel(),
-                      const SizedBox(width: 12),
-
-                      // Center: canvas with floating controls
-                      Expanded(
-                        child: Stack(
-                          children: [
-                            Positioned.fill(
-                              child: GlassPanel(
-                                padding: const EdgeInsets.all(4),
-                                child: ClipRRect(
-                                  borderRadius: BorderRadius.circular(14),
-                                  child: const CircuitCanvas(),
-                                ),
-                              ),
-                            ),
-                            const Positioned(
-                              top: 12,
-                              left: 12,
-                              child: CircuitToolbar(),
-                            ),
-                            Positioned(
-                              top: 12,
-                              left: 0,
-                              right: 0,
-                              child: Center(
-                                child: _SimulationControls(
-                                  onChanged: () => ref
-                                      .read(circuitProvider.notifier)
-                                      .forceUpdate(),
-                                ),
-                              ),
-                            ),
-                          ],
+                      // Canvas glass sheet
+                      Positioned.fill(
+                        child: GlassPanel(
+                          blur: 26,
+                          color: Colors.transparent,
+                          padding: const EdgeInsets.all(4),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(16),
+                            child: const CircuitCanvas(),
+                          ),
                         ),
                       ),
-                      const SizedBox(width: 12),
 
-                      // Right: I/O panel
-                      const IOPanel(),
+                      // Floating tool bar
+                      const Positioned(
+                        top: 14,
+                        left: 14,
+                        child: CircuitToolbar(),
+                      ),
+
+                      // Simulation controls
+                      Positioned(
+                        top: 14,
+                        left: 0,
+                        right: 0,
+                        child: Center(
+                          child: _SimulationControls(
+                            onChanged: () => ref
+                                .read(circuitProvider.notifier)
+                                .forceUpdate(),
+                          ),
+                        ),
+                      ),
+
+                      // Collapsible chip-library drawer
+                      Positioned(
+                        top: 60,
+                        bottom: 8,
+                        left: 8,
+                        width: 252,
+                        child: AnimatedSlide(
+                          offset: _chipDrawerOpen
+                              ? Offset.zero
+                              : const Offset(-1.18, 0),
+                          duration: const Duration(milliseconds: 240),
+                          curve: Curves.easeOutCubic,
+                          child: IgnorePointer(
+                            ignoring: !_chipDrawerOpen,
+                            child: _ModuleDrawer(
+                              onClose: () =>
+                                  setState(() => _chipDrawerOpen = false),
+                              child: const ChipLibraryPanel(),
+                            ),
+                          ),
+                        ),
+                      ),
+
+                      // Collapsible I/O drawer
+                      Positioned(
+                        top: 60,
+                        bottom: 8,
+                        right: 8,
+                        width: 232,
+                        child: AnimatedSlide(
+                          offset: _ioDrawerOpen
+                              ? Offset.zero
+                              : const Offset(1.18, 0),
+                          duration: const Duration(milliseconds: 240),
+                          curve: Curves.easeOutCubic,
+                          child: IgnorePointer(
+                            ignoring: !_ioDrawerOpen,
+                            child: _ModuleDrawer(
+                              onClose: () =>
+                                  setState(() => _ioDrawerOpen = false),
+                              child: const IOPanel(),
+                            ),
+                          ),
+                        ),
+                      ),
                     ],
                   ),
                 ),
@@ -200,7 +246,11 @@ class _CircuitEditorScreenState extends ConsumerState<CircuitEditorScreen> {
 /// Frosted header bar with back / file / simulation actions.
 class _GlassHeader extends StatelessWidget {
   final TextEditingController filenameController;
+  final bool chipsOpen;
+  final bool ioOpen;
   final VoidCallback onBack;
+  final VoidCallback onToggleChips;
+  final VoidCallback onToggleIO;
   final VoidCallback onNew;
   final VoidCallback onSave;
   final VoidCallback onLoad;
@@ -208,7 +258,11 @@ class _GlassHeader extends StatelessWidget {
 
   const _GlassHeader({
     required this.filenameController,
+    required this.chipsOpen,
+    required this.ioOpen,
     required this.onBack,
+    required this.onToggleChips,
+    required this.onToggleIO,
     required this.onNew,
     required this.onSave,
     required this.onLoad,
@@ -226,7 +280,7 @@ class _GlassHeader extends StatelessWidget {
       child: Row(
         children: [
           _HeaderButton(
-            icon: Icons.arrow_back_ios_new,
+            icon: Icons.arrow_back_rounded,
             tooltip: '返回首页',
             onPressed: onBack,
           ),
@@ -241,49 +295,66 @@ class _GlassHeader extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 18),
-          SizedBox(
-            width: 170,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-              decoration: BoxDecoration(
-                color: p.surfaceLight,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: TextField(
-                controller: filenameController,
-                style: TextStyle(
-                  fontSize: 12,
-                  color: p.textPrimary,
+          Flexible(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 150),
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: p.surfaceLight,
+                  borderRadius: BorderRadius.circular(8),
                 ),
-                decoration: const InputDecoration(
-                  isDense: true,
-                  contentPadding: EdgeInsets.zero,
-                  border: InputBorder.none,
-                  hintText: '文件名',
+                child: TextField(
+                  controller: filenameController,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: p.textPrimary,
+                  ),
+                  decoration: const InputDecoration(
+                    isDense: true,
+                    contentPadding: EdgeInsets.zero,
+                    border: InputBorder.none,
+                    hintText: '文件名',
+                  ),
                 ),
               ),
             ),
           ),
+          const SizedBox(width: 14),
+          _ModuleToggle(
+            icon: Icons.memory,
+            label: '芯片库',
+            active: chipsOpen,
+            onTap: onToggleChips,
+          ),
+          const SizedBox(width: 8),
+          _ModuleToggle(
+            icon: Icons.tune,
+            label: '输入 / 输出',
+            active: ioOpen,
+            onTap: onToggleIO,
+          ),
           const Spacer(),
-          const ThemeToggleButton(showLabel: false),
+          const ThemePickerButton(showLabel: false),
           const SizedBox(width: 4),
           _HeaderButton(
-            icon: Icons.add_circle_outline,
+            icon: Icons.add_rounded,
             tooltip: '新建电路',
             onPressed: onNew,
           ),
           _HeaderButton(
-            icon: Icons.save_outlined,
+            icon: Icons.save_rounded,
             tooltip: '保存电路',
             onPressed: onSave,
           ),
           _HeaderButton(
-            icon: Icons.folder_open,
+            icon: Icons.folder_open_rounded,
             tooltip: '载入电路',
             onPressed: onLoad,
           ),
           _HeaderButton(
-            icon: Icons.restart_alt,
+            icon: Icons.replay_rounded,
             tooltip: '重置仿真',
             onPressed: onReset,
           ),
@@ -306,13 +377,144 @@ class _HeaderButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final p = AppTheme.of(context);
+
     return Tooltip(
       message: tooltip,
-      child: IconButton(
-        onPressed: onPressed,
-        icon: Icon(icon, size: 19),
-        color: AppTheme.of(context).textPrimary,
-        hoverColor: AppTheme.of(context).accent.withValues(alpha: 0.12),
+      child: Material(
+        color: p.glassTint.withValues(alpha: 0.5),
+        borderRadius: BorderRadius.circular(10),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(10),
+          onTap: onPressed,
+          hoverColor: p.accent.withValues(alpha: 0.1),
+          child: Container(
+            padding: const EdgeInsets.all(7),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: p.glassBorder),
+              boxShadow: [
+                BoxShadow(
+                  color: p.glassShadow,
+                  blurRadius: 8,
+                  offset: const Offset(0, 3),
+                  spreadRadius: -3,
+                ),
+              ],
+            ),
+            child: Icon(icon, size: 18, color: p.textPrimary),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Pill-shaped toggle for the collapsible modules in the header bar.
+class _ModuleToggle extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final bool active;
+  final VoidCallback onTap;
+
+  const _ModuleToggle({
+    required this.icon,
+    required this.label,
+    required this.active,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final p = AppTheme.of(context);
+    final foreground = active ? p.accent : p.textSecondary;
+
+    return Tooltip(
+      message: active ? '收起$label' : '展开$label',
+      child: Material(
+        color: active
+            ? p.accent.withValues(alpha: 0.16)
+            : p.glassTint.withValues(alpha: 0.5),
+        borderRadius: BorderRadius.circular(14),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(14),
+          onTap: onTap,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(
+                color: active
+                    ? p.accent.withValues(alpha: 0.45)
+                    : p.glassBorder,
+              ),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(icon, size: 15, color: foreground),
+                const SizedBox(width: 6),
+                Text(
+                  label,
+                  style: TextStyle(
+                    color: foreground,
+                    fontSize: 12,
+                    fontWeight:
+                        active ? FontWeight.w600 : FontWeight.normal,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// A rounded frosted-glass drawer hosting a side module, with a close button.
+class _ModuleDrawer extends StatelessWidget {
+  final Widget child;
+  final VoidCallback onClose;
+
+  const _ModuleDrawer({required this.child, required this.onClose});
+
+  @override
+  Widget build(BuildContext context) {
+    final p = AppTheme.of(context);
+
+    return GlassPanel(
+      blur: 24,
+      borderRadius: BorderRadius.circular(22),
+      padding: const EdgeInsets.all(2),
+      child: Stack(
+        children: [
+          Positioned.fill(
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(20),
+              child: child,
+            ),
+          ),
+          Positioned(
+            top: 6,
+            right: 6,
+            child: Tooltip(
+              message: '收起',
+              child: Material(
+                color: p.glassTint,
+                shape: const CircleBorder(),
+                child: InkWell(
+                  customBorder: const CircleBorder(),
+                  onTap: onClose,
+                  child: const Padding(
+                    padding: EdgeInsets.all(5),
+                    child: Icon(Icons.close, size: 14),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

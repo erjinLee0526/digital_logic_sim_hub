@@ -7,7 +7,6 @@ import '../chips/chip_factory.dart';
 import '../models/chip_definition.dart';
 import '../providers/circuit_provider.dart';
 import '../theme/app_theme.dart';
-import '../theme/glass.dart';
 import 'chip_manual.dart';
 
 /// Side panel for searching and adding chips to the canvas.
@@ -43,12 +42,9 @@ class _ChipLibraryPanelState extends ConsumerState<ChipLibraryPanel> {
     final chips = _filteredChips;
     final p = AppTheme.of(context);
 
-    return GlassPanel(
-      width: 240,
-      borderRadius: BorderRadius.circular(18),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
           // Header
           Container(
             padding: const EdgeInsets.all(12),
@@ -110,8 +106,7 @@ class _ChipLibraryPanelState extends ConsumerState<ChipLibraryPanel> {
                     },
                   ),
           ),
-        ],
-      ),
+      ],
     );
   }
 }

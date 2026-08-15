@@ -11,25 +11,26 @@ class DigitalLogicSimApp extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final isDark = ref.watch(darkModeProvider);
+    final preset = ref.watch(themePresetProvider);
+    final isDay = preset == ThemePreset.dayIndustrial ||
+        preset == ThemePreset.dayRefined;
+    final theme = isDay ? AppTheme.lightTheme : AppTheme.darkTheme;
 
     return MaterialApp(
       title: 'Digital Logic Simulator',
-      theme: AppTheme.lightTheme,
-      darkTheme: AppTheme.darkTheme,
-      themeMode: isDark ? ThemeMode.dark : ThemeMode.light,
+      theme: theme,
       debugShowCheckedModeBanner: false,
       builder: (context, child) {
         return AnnotatedRegion<SystemUiOverlayStyle>(
           value: SystemUiOverlayStyle(
             statusBarColor: Colors.transparent,
             statusBarIconBrightness:
-                isDark ? Brightness.light : Brightness.dark,
-            statusBarBrightness: isDark ? Brightness.dark : Brightness.light,
+                isDay ? Brightness.dark : Brightness.light,
+            statusBarBrightness: isDay ? Brightness.light : Brightness.dark,
             systemNavigationBarColor:
-                isDark ? const Color(0xFF17191E) : const Color(0xFFF2F5FB),
+                isDay ? const Color(0xFFF2F5FB) : const Color(0xFF17191E),
             systemNavigationBarIconBrightness:
-                isDark ? Brightness.light : Brightness.dark,
+                isDay ? Brightness.dark : Brightness.light,
           ),
           child: child ?? const SizedBox.shrink(),
         );

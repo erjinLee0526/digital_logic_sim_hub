@@ -8,7 +8,6 @@ import '../models/signal_state.dart';
 import '../providers/circuit_provider.dart';
 import '../providers/simulation_provider.dart';
 import '../theme/app_theme.dart';
-import '../theme/glass.dart';
 
 class _InputControl {
   final ChipInstance chip;
@@ -53,12 +52,9 @@ class IOPanel extends ConsumerWidget {
     final leds =
         circuit.chips.where((c) => c.definition.model == 'LED').toList();
 
-    return GlassPanel(
-      width: 220,
-      borderRadius: BorderRadius.circular(18),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
           // Header
           Container(
             padding: const EdgeInsets.all(12),
@@ -140,8 +136,7 @@ class IOPanel extends ConsumerWidget {
                     },
                   ),
           ),
-        ],
-      ),
+      ],
     );
   }
 

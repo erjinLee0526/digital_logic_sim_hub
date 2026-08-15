@@ -171,7 +171,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               const Positioned(
                 top: 12,
                 right: 12,
-                child: ThemeToggleButton(),
+                child: ThemePickerButton(),
               ),
             ],
           ),

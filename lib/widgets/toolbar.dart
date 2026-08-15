@@ -5,13 +5,14 @@ import '../providers/editor_provider.dart';
 import '../theme/app_theme.dart';
 import '../theme/glass.dart';
 
-/// Floating glass toolbar with tool selection.
+/// Floating glass toolbar: tool selection, chip style and pin visibility.
 class CircuitToolbar extends ConsumerWidget {
   const CircuitToolbar({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final currentTool = ref.watch(editorToolProvider);
+    final p = AppTheme.of(context);
 
     return GlassPanel(
       blur: 14,
@@ -47,6 +48,16 @@ class CircuitToolbar extends ConsumerWidget {
                 .read(editorToolProvider.notifier)
                 .state = EditorTool.deleting,
           ),
+
+          Container(
+            width: 1,
+            height: 22,
+            margin: const EdgeInsets.symmetric(horizontal: 5),
+            color: p.chipBorder.withValues(alpha: 0.55),
+          ),
+
+          // Pin visibility
+          const _PinToggle(),
         ],
       ),
     );
@@ -114,6 +125,40 @@ class _ToolButton extends StatelessWidget {
                   ),
                 ),
               ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Toggle that shows or hides the clickable pin dots on chips.
+class _PinToggle extends ConsumerWidget {
+  const _PinToggle();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final showPins = ref.watch(showPinsProvider);
+    final p = AppTheme.of(context);
+
+    return Tooltip(
+      message: showPins ? '隐藏引脚' : '显示引脚',
+      child: Material(
+        color: showPins
+            ? p.accent.withValues(alpha: 0.16)
+            : Colors.transparent,
+        borderRadius: BorderRadius.circular(8),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(8),
+          onTap: () =>
+              ref.read(showPinsProvider.notifier).state = !showPins,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
+            child: Icon(
+              showPins ? Icons.circle : Icons.circle_outlined,
+              size: 16,
+              color: showPins ? p.accent : p.textSecondary,
             ),
           ),
         ),

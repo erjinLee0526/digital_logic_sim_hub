@@ -8,6 +8,7 @@ import '../models/circuit.dart';
 import '../models/pin.dart';
 import '../models/signal_state.dart';
 import '../models/wire.dart';
+import '../providers/editor_provider.dart';
 import '../theme/app_theme.dart';
 
 /// Hard collision margin: wires may never enter this area around a visible
@@ -1192,6 +1193,8 @@ List<Offset> computeWireRoute(Offset p1, Offset p2, ChipInstance? chip1,
 class CircuitPainter extends CustomPainter {
   final Circuit circuit;
   final ThemePalette palette;
+  final ChipStyle chipStyle;
+  final bool showPins;
   final String? selectedPinId;
   final String? selectedChipId;
   final String? selectedWireId;
@@ -1202,6 +1205,8 @@ class CircuitPainter extends CustomPainter {
   CircuitPainter({
     required this.circuit,
     required this.palette,
+    this.chipStyle = ChipStyle.industrial,
+    this.showPins = true,
     this.selectedPinId,
     this.selectedChipId,
     this.selectedWireId,
@@ -1215,7 +1220,7 @@ class CircuitPainter extends CustomPainter {
     // Draw background
     canvas.drawRect(
       Rect.fromLTWH(0, 0, size.width, size.height),
-      Paint()..color = palette.canvasBg,
+      Paint()..color = _canvasColor,
     );
 
     // Draw grid
@@ -1238,6 +1243,9 @@ class CircuitPainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant CircuitPainter oldDelegate) {
     return circuit != oldDelegate.circuit ||
+        palette != oldDelegate.palette ||
+        chipStyle != oldDelegate.chipStyle ||
+        showPins != oldDelegate.showPins ||
         selectedPinId != oldDelegate.selectedPinId ||
         selectedChipId != oldDelegate.selectedChipId ||
         selectedWireId != oldDelegate.selectedWireId ||
@@ -1251,12 +1259,12 @@ class CircuitPainter extends CustomPainter {
   void _drawGrid(Canvas canvas, Size size) {
     const spacing = kGridUnit;
     final paint = Paint()
-      ..color = palette.gridDot
+      ..color = _gridColor
       ..strokeWidth = 1.0;
 
     for (double x = 0; x < size.width; x += spacing) {
       for (double y = 0; y < size.height; y += spacing) {
-        canvas.drawCircle(Offset(x, y), 1.0, paint);
+        canvas.drawCircle(Offset(x, y), 1.35, paint);
       }
     }
   }
@@ -1440,7 +1448,7 @@ class CircuitPainter extends CustomPainter {
           pos,
           4.5,
           Paint()
-          ..color = palette.canvasBg
+          ..color = _canvasColor
             ..style = PaintingStyle.stroke
             ..strokeWidth = 1.0);
 
@@ -1452,7 +1460,7 @@ class CircuitPainter extends CustomPainter {
             bp,
             4.5,
             Paint()
-              ..color = palette.canvasBg
+              ..color = _canvasColor
               ..style = PaintingStyle.stroke
               ..strokeWidth = 1.0);
       }
@@ -1502,53 +1510,164 @@ class CircuitPainter extends CustomPainter {
 
   // ---- Chips ----
 
+  bool get _refinedStyle => chipStyle == ChipStyle.refined;
+
+  bool get _industrialStyle => chipStyle == ChipStyle.industrial;
+
+  Color get _canvasColor => _industrialStyle
+      ? palette.canvasBgIndustrial
+      : palette.canvasBg;
+
+  Color get _gridColor => _industrialStyle
+      ? palette.gridDotIndustrial
+      : palette.gridDot;
+
+  Color get _chipAccentColor =>
+      _refinedStyle ? palette.chipAccentRefined : palette.accent;
+
+  Color get _chipLabelColor =>
+      _refinedStyle
+          ? palette.chipTextRefined
+          : palette.chipTextIndustrial;
+
+  Color get _chipLabelSecondaryColor => _refinedStyle
+      ? palette.chipTextSecondaryRefined
+      : palette.chipTextSecondaryIndustrial;
+
   void _drawChip(Canvas canvas, ChipInstance chip) {
     final rect = chip.rect;
     final isSelected = chip.id == selectedChipId;
+    final isRefined = chipStyle == ChipStyle.refined;
 
     // Chip body
-    final bodyPaint = Paint()
-      ..color = palette.chipBody
-      ..style = PaintingStyle.fill;
-    final borderPaint = Paint()
-      ..color = isSelected ? palette.chipBorderSelected : palette.chipBorder
-      ..strokeWidth = isSelected ? 2.5 : 1.5
-      ..style = PaintingStyle.stroke;
+    final bodyColor =
+        isRefined ? palette.chipBodyRefined : palette.chipBodyIndustrial;
+    final bodyPaint = Paint()..style = PaintingStyle.fill;
+    if (isRefined) {
+      // Pearl-like sheen: gray base with a white gloss sweeping from the
+      // top-left toward the bottom-right.
+      bodyPaint.shader = LinearGradient(
+        begin: const Alignment(-0.45, -0.5),
+        end: const Alignment(0.55, 0.75),
+        colors: [
+          Color.lerp(bodyColor, palette.chipGlossRefined, 0.62)!,
+          bodyColor,
+          Color.lerp(bodyColor, Colors.black, 0.16)!,
+        ],
+        stops: const [0.0, 0.48, 1.0],
+      ).createShader(rect);
+    } else {
+      bodyPaint.color = bodyColor;
+    }
+    final Paint borderPaint;
+    if (isRefined && !isSelected) {
+      // The refined edge is a gradient: lighter at the top, darker at the
+      // bottom, giving the chip a dimensional, non-flat outline.
+      borderPaint = Paint()
+        ..shader = LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            Color.lerp(
+                palette.chipGlossRefined, palette.chipBorderRefined, 0.25)!,
+            palette.chipBorderRefined,
+            Color.lerp(palette.chipBorderRefined, Colors.black, 0.18)!,
+          ],
+          stops: const [0.0, 0.52, 1.0],
+        ).createShader(rect)
+        ..strokeWidth = 1.4
+        ..style = PaintingStyle.stroke;
+    } else {
+      borderPaint = Paint()
+        ..color = isSelected
+            ? palette.chipBorderSelected
+            : palette.chipBorderIndustrial
+        ..strokeWidth = isSelected ? 2.5 : 1.5
+        ..style = PaintingStyle.stroke;
+    }
 
-    final rrect = RRect.fromRectAndRadius(rect, const Radius.circular(6));
+    final radius = isRefined ? 12.0 : 6.0;
+    final rrect = RRect.fromRectAndRadius(rect, Radius.circular(radius));
     final shadowPath = Path()..addRRect(rrect);
     canvas.drawShadow(
       shadowPath,
-      palette.glassShadow,
-      5,
+      isRefined
+          ? (palette.isDark
+              ? const Color(0xCC000000)
+              : const Color(0x45405A8A))
+          : palette.glassShadow,
+      isRefined ? 10 : 5,
       true,
     );
     canvas.drawRRect(rrect, bodyPaint);
 
+    // Soft pearl reflection inside the top area.
+    if (isRefined) {
+      final sheenCenter =
+          rect.topLeft + Offset(rect.width * 0.28, rect.height * 0.22);
+      final sheenPaint = Paint()
+        ..shader = RadialGradient(
+          colors: [
+            palette.chipGlossRefined.withValues(alpha: 0.85),
+            palette.chipGlossRefined.withValues(alpha: 0.0),
+          ],
+        ).createShader(Rect.fromCircle(
+          center: sheenCenter,
+          radius: rect.width * 0.9,
+        ));
+      canvas.save();
+      canvas.clipRRect(rrect);
+      canvas.drawRect(rect.inflate(2), sheenPaint);
+      canvas.restore();
+    }
+
     // Glass highlight along the top edge.
     final highlightPaint = Paint()
-      ..color =
-          Colors.white.withValues(alpha: palette.isDark ? 0.10 : 0.85)
-      ..strokeWidth = 1.2
-      ..style = PaintingStyle.stroke;
+      ..color = isRefined
+          ? palette.chipGlossRefined.withValues(alpha: 0.9)
+          : Colors.white.withValues(alpha: 0.18)
+      ..strokeWidth = isRefined ? 1.8 : 1.2
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round;
     final highlightPath = Path()
-      ..moveTo(rect.left + 6, rect.top + 2)
-      ..lineTo(rect.right - 6, rect.top + 2);
+      ..moveTo(rect.left + (isRefined ? 9 : 6),
+          rect.top + (isRefined ? 4 : 2))
+      ..lineTo(rect.right - (isRefined ? 9 : 6),
+          rect.top + (isRefined ? 4 : 2));
     canvas.drawPath(highlightPath, highlightPaint);
 
     canvas.drawRRect(rrect, borderPaint);
 
+    // Subtle inner bevel that makes the refined edge read as glass.
+    if (isRefined) {
+      final inset = rect.deflate(1.5);
+      final innerRRect = RRect.fromRectAndRadius(
+        inset,
+        Radius.circular(radius - 1.5),
+      );
+      canvas.drawRRect(
+        innerRRect,
+        Paint()
+          ..color = palette.chipGlossRefined.withValues(
+              alpha: 0.5)
+          ..strokeWidth = 0.9
+          ..style = PaintingStyle.stroke,
+      );
+    }
+
     // Notch indicator (small arc at top center)
-    final notchPaint = Paint()
-      ..color = palette.chipBorder
-      ..strokeWidth = 2.0
-      ..style = PaintingStyle.stroke;
-    final notchRect = Rect.fromCenter(
-      center: Offset(rect.center.dx, rect.top + 2),
-      width: 20,
-      height: 8,
-    );
-    canvas.drawArc(notchRect, 3.14, 3.14, false, notchPaint);
+    if (!isRefined) {
+      final notchPaint = Paint()
+        ..color = palette.chipBorderIndustrial
+        ..strokeWidth = 2.0
+        ..style = PaintingStyle.stroke;
+      final notchRect = Rect.fromCenter(
+        center: Offset(rect.center.dx, rect.top + 2),
+        width: 20,
+        height: 8,
+      );
+      canvas.drawArc(notchRect, 3.14, 3.14, false, notchPaint);
+    }
 
     if (chip.definition.model == 'INPUT') {
       _drawInputSwitch(canvas, chip, rect);
@@ -1560,7 +1679,7 @@ class CircuitPainter extends CustomPainter {
         text: TextSpan(
           text: chip.definition.model,
           style: TextStyle(
-            color: palette.accent,
+            color: _chipAccentColor,
             fontSize: 14,
             fontWeight: FontWeight.bold,
           ),
@@ -1581,7 +1700,7 @@ class CircuitPainter extends CustomPainter {
         text: TextSpan(
           text: chip.definition.description,
           style: TextStyle(
-            color: palette.textSecondary,
+            color: _chipLabelSecondaryColor,
             fontSize: 9,
           ),
         ),
@@ -1598,7 +1717,9 @@ class CircuitPainter extends CustomPainter {
     }
 
     // Draw each pin
-    _drawPins(canvas, chip);
+    if (showPins) {
+      _drawPins(canvas, chip);
+    }
   }
 
   void _drawInputSwitch(Canvas canvas, ChipInstance chip, Rect rect) {
@@ -1616,7 +1737,7 @@ class CircuitPainter extends CustomPainter {
         text: TextSpan(
           text: name,
           style: TextStyle(
-            color: palette.textSecondary,
+            color: _chipLabelSecondaryColor,
             fontSize: 11,
             fontWeight: FontWeight.w500,
             fontFamily: 'Segoe UI',
@@ -1639,7 +1760,7 @@ class CircuitPainter extends CustomPainter {
       final trackPaint = Paint()
         ..color = isHigh
           ? palette.signalHigh.withValues(alpha: 0.25)
-          : palette.textSecondary.withValues(alpha: 0.25);
+          : _chipLabelSecondaryColor.withValues(alpha: 0.3);
       canvas.drawRRect(
         RRect.fromRectAndRadius(trackRect, const Radius.circular(5)),
         trackPaint,
@@ -1649,7 +1770,8 @@ class CircuitPainter extends CustomPainter {
       canvas.drawCircle(
         Offset(knobX, rowY),
         6,
-      Paint()..color = isHigh ? palette.signalHigh : palette.textSecondary,
+      Paint()
+        ..color = isHigh ? palette.signalHigh : _chipLabelSecondaryColor,
       );
     }
   }
@@ -1688,7 +1810,7 @@ class CircuitPainter extends CustomPainter {
       text: TextSpan(
         text: ledName,
       style: TextStyle(
-        color: palette.textSecondary,
+          color: _chipLabelSecondaryColor,
         fontSize: 13,
         fontWeight: FontWeight.w500,
         fontFamily: 'Segoe UI',
@@ -1789,7 +1911,7 @@ class CircuitPainter extends CustomPainter {
         text: TextSpan(
           text: '$pinNumber',
           style: TextStyle(
-            color: palette.textPrimary,
+            color: _chipLabelColor,
             fontSize: 10,
             fontWeight: isPinSelected ? FontWeight.w800 : FontWeight.w600,
           ),

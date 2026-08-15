@@ -32,6 +32,16 @@ class ThemePalette extends ThemeExtension<ThemePalette> {
   final Color chipBody;
   final Color chipBorder;
   final Color chipBorderSelected;
+  final Color chipBodyIndustrial;
+  final Color chipBorderIndustrial;
+  final Color chipTextIndustrial;
+  final Color chipTextSecondaryIndustrial;
+  final Color chipBodyRefined;
+  final Color chipBorderRefined;
+  final Color chipGlossRefined;
+  final Color chipTextRefined;
+  final Color chipTextSecondaryRefined;
+  final Color chipAccentRefined;
 
   // Pin colors.
   final Color pinInput;
@@ -49,6 +59,8 @@ class ThemePalette extends ThemeExtension<ThemePalette> {
   // Canvas.
   final Color gridDot;
   final Color canvasBg;
+  final Color gridDotIndustrial;
+  final Color canvasBgIndustrial;
 
   // Glass surfaces.
   final Color glassTint;
@@ -73,6 +85,16 @@ class ThemePalette extends ThemeExtension<ThemePalette> {
     required this.chipBody,
     required this.chipBorder,
     required this.chipBorderSelected,
+    required this.chipBodyIndustrial,
+    required this.chipBorderIndustrial,
+    required this.chipTextIndustrial,
+    required this.chipTextSecondaryIndustrial,
+    required this.chipBodyRefined,
+    required this.chipBorderRefined,
+    required this.chipGlossRefined,
+    required this.chipTextRefined,
+    required this.chipTextSecondaryRefined,
+    required this.chipAccentRefined,
     required this.pinInput,
     required this.pinOutput,
     required this.pinPower,
@@ -84,6 +106,8 @@ class ThemePalette extends ThemeExtension<ThemePalette> {
     required this.wireSelected,
     required this.gridDot,
     required this.canvasBg,
+    required this.gridDotIndustrial,
+    required this.canvasBgIndustrial,
     required this.glassTint,
     required this.glassBorder,
     required this.glassShadow,
@@ -122,6 +146,16 @@ class ThemePalette extends ThemeExtension<ThemePalette> {
     Color? chipBody,
     Color? chipBorder,
     Color? chipBorderSelected,
+    Color? chipBodyIndustrial,
+    Color? chipBorderIndustrial,
+    Color? chipTextIndustrial,
+    Color? chipTextSecondaryIndustrial,
+    Color? chipBodyRefined,
+    Color? chipBorderRefined,
+    Color? chipGlossRefined,
+    Color? chipTextRefined,
+    Color? chipTextSecondaryRefined,
+    Color? chipAccentRefined,
     Color? pinInput,
     Color? pinOutput,
     Color? pinPower,
@@ -133,6 +167,8 @@ class ThemePalette extends ThemeExtension<ThemePalette> {
     Color? wireSelected,
     Color? gridDot,
     Color? canvasBg,
+    Color? gridDotIndustrial,
+    Color? canvasBgIndustrial,
     Color? glassTint,
     Color? glassBorder,
     Color? glassShadow,
@@ -155,6 +191,18 @@ class ThemePalette extends ThemeExtension<ThemePalette> {
       chipBody: chipBody ?? this.chipBody,
       chipBorder: chipBorder ?? this.chipBorder,
       chipBorderSelected: chipBorderSelected ?? this.chipBorderSelected,
+      chipBodyIndustrial: chipBodyIndustrial ?? this.chipBodyIndustrial,
+      chipBorderIndustrial: chipBorderIndustrial ?? this.chipBorderIndustrial,
+      chipTextIndustrial: chipTextIndustrial ?? this.chipTextIndustrial,
+      chipTextSecondaryIndustrial:
+          chipTextSecondaryIndustrial ?? this.chipTextSecondaryIndustrial,
+      chipBodyRefined: chipBodyRefined ?? this.chipBodyRefined,
+      chipBorderRefined: chipBorderRefined ?? this.chipBorderRefined,
+      chipGlossRefined: chipGlossRefined ?? this.chipGlossRefined,
+      chipTextRefined: chipTextRefined ?? this.chipTextRefined,
+      chipTextSecondaryRefined:
+          chipTextSecondaryRefined ?? this.chipTextSecondaryRefined,
+      chipAccentRefined: chipAccentRefined ?? this.chipAccentRefined,
       pinInput: pinInput ?? this.pinInput,
       pinOutput: pinOutput ?? this.pinOutput,
       pinPower: pinPower ?? this.pinPower,
@@ -166,6 +214,8 @@ class ThemePalette extends ThemeExtension<ThemePalette> {
       wireSelected: wireSelected ?? this.wireSelected,
       gridDot: gridDot ?? this.gridDot,
       canvasBg: canvasBg ?? this.canvasBg,
+      gridDotIndustrial: gridDotIndustrial ?? this.gridDotIndustrial,
+      canvasBgIndustrial: canvasBgIndustrial ?? this.canvasBgIndustrial,
       glassTint: glassTint ?? this.glassTint,
       glassBorder: glassBorder ?? this.glassBorder,
       glassShadow: glassShadow ?? this.glassShadow,
@@ -198,9 +248,19 @@ class AppTheme {
     signalLow: Color(0xFF2F6FED),
     signalHighZ: Color(0xFF9AA6B8),
     signalUnknown: Color(0xFFE5484D),
-    chipBody: Color(0xCCE9EDF4),
+    chipBody: Color(0xF5F7F9FC),
     chipBorder: Color(0xFFB9C6DA),
     chipBorderSelected: Color(0xFF4E6EF2),
+    chipBodyIndustrial: Color(0xFF232A30),
+    chipBorderIndustrial: Color(0xFF4A6356),
+    chipTextIndustrial: Color(0xFFF2F6F8),
+    chipTextSecondaryIndustrial: Color(0xFFB8C3CC),
+    chipBodyRefined: Color(0xF0E9ECF2),
+    chipBorderRefined: Color(0xFFAEB8C8),
+    chipGlossRefined: Color(0xFFFFFFFF),
+    chipTextRefined: Color(0xFF33405E),
+    chipTextSecondaryRefined: Color(0xFF66758C),
+    chipAccentRefined: Color(0xFF4E6EF2),
     pinInput: Color(0xFF63A5F5),
     pinOutput: Color(0xFFF0A21C),
     pinPower: Color(0xFFE5484D),
@@ -210,8 +270,10 @@ class AppTheme {
     wireLow: Color(0xFF2F6FED),
     wireConflict: Color(0xFFE5484D),
     wireSelected: Color(0xFFF0A21C),
-    gridDot: Color(0xFFD9E2F0),
-    canvasBg: Color(0xFFFAFCFF),
+    gridDot: Color(0xFFB7C7DC),
+    canvasBg: Color(0x4DFFFFFF),
+    gridDotIndustrial: Color(0xFF1F5C29),
+    canvasBgIndustrial: Color(0xFF2E7D32),
     glassTint: Color(0x94FFFFFF),
     glassBorder: Color(0xB8FFFFFF),
     glassShadow: Color(0x21384A66),
@@ -232,9 +294,19 @@ class AppTheme {
     signalLow: Color(0xFF6C9BFF),
     signalHighZ: Color(0xFF7C8494),
     signalUnknown: Color(0xFFFF6B6B),
-    chipBody: Color(0xB32A303C),
+    chipBody: Color(0xDE303845),
     chipBorder: Color(0xFF4A5262),
     chipBorderSelected: Color(0xFF7C9BFF),
+    chipBodyIndustrial: Color(0xFF232A30),
+    chipBorderIndustrial: Color(0xFF4A6356),
+    chipTextIndustrial: Color(0xFFF2F6F8),
+    chipTextSecondaryIndustrial: Color(0xFFB8C3CC),
+    chipBodyRefined: Color(0xE8464F5F),
+    chipBorderRefined: Color(0xFF818B9C),
+    chipGlossRefined: Color(0xFFFFFFFF),
+    chipTextRefined: Color(0xFFE9ECF2),
+    chipTextSecondaryRefined: Color(0xFFB7BFCD),
+    chipAccentRefined: Color(0xFF8FA8FF),
     pinInput: Color(0xFF6FAEF7),
     pinOutput: Color(0xFFF5C044),
     pinPower: Color(0xFFFF6B6B),
@@ -244,8 +316,10 @@ class AppTheme {
     wireLow: Color(0xFF6C9BFF),
     wireConflict: Color(0xFFFF6B6B),
     wireSelected: Color(0xFFF5C044),
-    gridDot: Color(0xFF2A2E37),
-    canvasBg: Color(0xFF1B1E25),
+    gridDot: Color(0xFF3A4250),
+    canvasBg: Color(0xE620232A),
+    gridDotIndustrial: Color(0xFF1F5C29),
+    canvasBgIndustrial: Color(0xFF2E7D32),
     glassTint: Color(0x8A23262D),
     glassBorder: Color(0x4DFFFFFF),
     glassShadow: Color(0x66000000),

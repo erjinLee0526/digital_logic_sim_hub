@@ -55,6 +55,8 @@ class _CircuitCanvasState extends ConsumerState<CircuitCanvas> {
     final palette = AppTheme.of(context);
     final circuit = ref.watch(circuitProvider);
     final tool = ref.watch(editorToolProvider);
+    final chipStyle = ref.watch(chipStyleProvider);
+    final showPins = ref.watch(showPinsProvider);
     final selectedPinId = ref.watch(selectedPinProvider);
     final selectedChipId = ref.watch(selectedChipProvider);
     final selectedWireId = ref.watch(selectedWireProvider);
@@ -112,6 +114,8 @@ class _CircuitCanvasState extends ConsumerState<CircuitCanvas> {
             painter: CircuitPainter(
               circuit: circuit,
               palette: palette,
+              chipStyle: chipStyle,
+              showPins: showPins,
               selectedPinId: selectedPinId,
               selectedChipId: selectedChipId,
               selectedWireId: selectedWireId,
