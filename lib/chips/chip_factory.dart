@@ -8,6 +8,7 @@ import 'ls74ls08.dart';
 import 'ls74ls10.dart';
 import 'ls74ls11.dart';
 import 'ls74ls112.dart';
+import 'ls74ls125.dart';
 import 'ls74ls20.dart';
 import 'ls74ls21.dart';
 import 'ls74ls27.dart';
@@ -15,12 +16,15 @@ import 'ls74ls32.dart';
 import 'ls74ls42.dart';
 import 'ls74ls74.dart';
 import 'ls74ls76.dart';
+import 'ls74ls85.dart';
 import 'ls74ls86.dart';
 import 'ls74ls136.dart';
 import 'ls74ls138.dart';
 import 'ls74ls139.dart';
+import 'ls74ls148.dart';
 import 'ls74ls151.dart';
 import 'ls74ls153.dart';
+import 'ls74ls154.dart';
 import 'ls74ls157.dart';
 import 'ls74ls160.dart';
 import 'ls74ls161.dart';
@@ -34,6 +38,8 @@ import 'ls74ls190.dart';
 import 'ls74ls191.dart';
 import 'ls74ls193.dart';
 import 'ls74ls194.dart';
+import 'ls74ls244.dart';
+import 'ls74ls245.dart';
 import 'ls74ls273.dart';
 import 'ls74ls283.dart';
 import 'ls74ls373.dart';
@@ -55,6 +61,7 @@ class ChipFactory {
     '74LS10': () => Chip74LS10(),
     '74LS11': () => Chip74LS11(),
     '74LS112': () => Chip74LS112(),
+    '74LS125': () => Chip74LS125(),
     '74LS20': () => Chip74LS20(),
     '74LS21': () => Chip74LS21(),
     '74LS27': () => Chip74LS27(),
@@ -62,12 +69,15 @@ class ChipFactory {
     '74LS42': () => Chip74LS42(),
     '74LS74': () => Chip74LS74(),
     '74LS76': () => Chip74LS76(),
+    '74LS85': () => Chip74LS85(),
     '74LS86': () => Chip74LS86(),
     '74LS136': () => Chip74LS136(),
     '74LS138': () => Chip74LS138(),
     '74LS139': () => Chip74LS139(),
+    '74LS148': () => Chip74LS148(),
     '74LS151': () => Chip74LS151(),
     '74LS153': () => Chip74LS153(),
+    '74LS154': () => Chip74LS154(),
     '74LS157': () => Chip74LS157(),
     '74LS160': () => Chip74LS160(),
     '74LS161': () => Chip74LS161(),
@@ -81,6 +91,8 @@ class ChipFactory {
     '74LS191': () => Chip74LS191(),
     '74LS193': () => Chip74LS193(),
     '74LS194': () => Chip74LS194(),
+    '74LS244': () => Chip74LS244(),
+    '74LS245': () => Chip74LS245(),
     '74LS273': () => Chip74LS273(),
     '74LS283': () => Chip74LS283(),
     '74LS373': () => Chip74LS373(),
