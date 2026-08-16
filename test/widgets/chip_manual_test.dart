@@ -27,7 +27,7 @@ void main() {
     expect(find.text('真值表'), findsOneWidget);
     expect(find.text('组合逻辑'), findsOneWidget);
     // Identical gates are summarized with a single representative table.
-    expect(find.textContaining('各门电路行为一致'), findsOneWidget);
+    expect(find.textContaining('各组逻辑行为一致'), findsOneWidget);
     expect(find.text('门 1'), findsWidgets);
     expect(find.text('门 4'), findsWidgets);
     // Truth-table output values rendered with signal colors.

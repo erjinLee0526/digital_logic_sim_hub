@@ -79,7 +79,7 @@ class ChipManualDialog extends StatelessWidget {
                         Padding(
                           padding: const EdgeInsets.only(bottom: 8),
                           child: Text(
-                            '各门电路行为一致，以下以 ${groups.first.name} 为例。',
+                            '各组逻辑行为一致，以下以 ${groups.first.name} 为例。',
                             style: TextStyle(
                               color: p.textSecondary,
                               fontSize: 11,
