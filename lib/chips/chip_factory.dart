@@ -15,6 +15,11 @@ import 'ls74ls42.dart';
 import 'ls74ls74.dart';
 import 'ls74ls86.dart';
 import 'ls74ls136.dart';
+import 'ls74ls138.dart';
+import 'ls74ls139.dart';
+import 'ls74ls151.dart';
+import 'ls74ls153.dart';
+import 'ls74ls157.dart';
 import 'ls74ls160.dart';
 import 'ls74ls161.dart';
 import 'ls74ls163.dart';
@@ -24,6 +29,7 @@ import 'ls74ls266.dart';
 import 'ls74ls175.dart';
 import 'ls74ls194.dart';
 import 'ls74ls273.dart';
+import 'ls74ls283.dart';
 import 'ls74ls373.dart';
 import 'ls74ls393.dart';
 import 'ls74ls90.dart';
@@ -50,6 +56,11 @@ class ChipFactory {
     '74LS74': () => Chip74LS74(),
     '74LS86': () => Chip74LS86(),
     '74LS136': () => Chip74LS136(),
+    '74LS138': () => Chip74LS138(),
+    '74LS139': () => Chip74LS139(),
+    '74LS151': () => Chip74LS151(),
+    '74LS153': () => Chip74LS153(),
+    '74LS157': () => Chip74LS157(),
     '74LS160': () => Chip74LS160(),
     '74LS161': () => Chip74LS161(),
     '74LS163': () => Chip74LS163(),
@@ -59,6 +70,7 @@ class ChipFactory {
     '74LS175': () => Chip74LS175(),
     '74LS194': () => Chip74LS194(),
     '74LS273': () => Chip74LS273(),
+    '74LS283': () => Chip74LS283(),
     '74LS373': () => Chip74LS373(),
     '74LS393': () => Chip74LS393(),
     '74LS90': () => Chip74LS90(),
