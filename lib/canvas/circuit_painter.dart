@@ -1550,7 +1550,10 @@ class CircuitPainter extends CustomPainter {
         begin: const Alignment(-0.45, -0.5),
         end: const Alignment(0.55, 0.75),
         colors: [
-          Color.lerp(bodyColor, palette.chipGlossRefined, 0.62)!,
+          Color.lerp(
+              bodyColor,
+              palette.chipGlossRefined,
+              palette.isDark ? 0.18 : 0.55)!,
           bodyColor,
           Color.lerp(bodyColor, Colors.black, 0.16)!,
         ],
@@ -1608,7 +1611,9 @@ class CircuitPainter extends CustomPainter {
       final sheenPaint = Paint()
         ..shader = RadialGradient(
           colors: [
-            palette.chipGlossRefined.withValues(alpha: 0.85),
+            palette.chipGlossRefined.withValues(
+              alpha: palette.isDark ? 0.16 : 0.8,
+            ),
             palette.chipGlossRefined.withValues(alpha: 0.0),
           ],
         ).createShader(Rect.fromCircle(
@@ -1624,7 +1629,9 @@ class CircuitPainter extends CustomPainter {
     // Glass highlight along the top edge.
     final highlightPaint = Paint()
       ..color = isRefined
-          ? palette.chipGlossRefined.withValues(alpha: 0.9)
+          ? palette.chipGlossRefined.withValues(
+              alpha: palette.isDark ? 0.5 : 0.9,
+            )
           : Colors.white.withValues(alpha: 0.18)
       ..strokeWidth = isRefined ? 1.8 : 1.2
       ..style = PaintingStyle.stroke
@@ -1649,7 +1656,7 @@ class CircuitPainter extends CustomPainter {
         innerRRect,
         Paint()
           ..color = palette.chipGlossRefined.withValues(
-              alpha: 0.5)
+              alpha: palette.isDark ? 0.22 : 0.5)
           ..strokeWidth = 0.9
           ..style = PaintingStyle.stroke,
       );

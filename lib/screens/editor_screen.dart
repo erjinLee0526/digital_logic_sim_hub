@@ -1,9 +1,15 @@
+import 'dart:math';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../canvas/circuit_canvas.dart';
+import '../chips/chip_factory.dart';
+import '../models/chip_definition.dart';
 import '../providers/circuit_provider.dart';
+import '../providers/editor_provider.dart';
 import '../providers/simulation_provider.dart';
+import '../providers/theme_provider.dart';
 import '../services/file_service.dart';
 import '../theme/app_theme.dart';
 import '../theme/glass.dart';
@@ -38,132 +44,41 @@ class _CircuitEditorScreenState extends ConsumerState<CircuitEditorScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final p = AppTheme.of(context);
+    final preset = ref.watch(themePresetProvider);
 
-    return Scaffold(
-      backgroundColor: p.background,
-      body: GlassBackground(
-        child: SafeArea(
-          child: Column(
-            children: [
-              _GlassHeader(
-                filenameController: _filenameController,
-                chipsOpen: _chipDrawerOpen,
-                ioOpen: _ioDrawerOpen,
-                onBack: () => Navigator.of(context).maybePop(),
-                onToggleChips: () =>
-                    setState(() => _chipDrawerOpen = !_chipDrawerOpen),
-                onToggleIO: () =>
-                    setState(() => _ioDrawerOpen = !_ioDrawerOpen),
-                onNew: _newCircuit,
-                onSave: _saveCircuit,
-                onLoad: _loadCircuit,
-                onReset: _resetSimulation,
-              ),
-              Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
-                  child: Stack(
-                    children: [
-                      // Canvas glass sheet
-                      Positioned.fill(
-                        child: GlassPanel(
-                          blur: 26,
-                          color: Colors.transparent,
-                          padding: const EdgeInsets.all(4),
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(16),
-                            child: const CircuitCanvas(),
-                          ),
-                        ),
-                      ),
-
-                      // Floating tool bar
-                      const Positioned(
-                        top: 14,
-                        left: 14,
-                        child: CircuitToolbar(),
-                      ),
-
-                      // Simulation controls
-                      Positioned(
-                        top: 14,
-                        left: 0,
-                        right: 0,
-                        child: Center(
-                          child: _SimulationControls(
-                            onChanged: () => ref
-                                .read(circuitProvider.notifier)
-                                .forceUpdate(),
-                          ),
-                        ),
-                      ),
-
-                      // Collapsible chip-library drawer
-                      Positioned(
-                        top: 60,
-                        bottom: 8,
-                        left: 8,
-                        width: 252,
-                        child: AnimatedSlide(
-                          offset: _chipDrawerOpen
-                              ? Offset.zero
-                              : const Offset(-1.18, 0),
-                          duration: const Duration(milliseconds: 240),
-                          curve: Curves.easeOutCubic,
-                          child: IgnorePointer(
-                            ignoring: !_chipDrawerOpen,
-                            child: _ModuleDrawer(
-                              onClose: () =>
-                                  setState(() => _chipDrawerOpen = false),
-                              child: const ChipLibraryPanel(),
-                            ),
-                          ),
-                        ),
-                      ),
-
-                      // Collapsible I/O drawer
-                      Positioned(
-                        top: 60,
-                        bottom: 8,
-                        right: 8,
-                        width: 232,
-                        child: AnimatedSlide(
-                          offset: _ioDrawerOpen
-                              ? Offset.zero
-                              : const Offset(1.18, 0),
-                          duration: const Duration(milliseconds: 240),
-                          curve: Curves.easeOutCubic,
-                          child: IgnorePointer(
-                            ignoring: !_ioDrawerOpen,
-                            child: _ModuleDrawer(
-                              onClose: () =>
-                                  setState(() => _ioDrawerOpen = false),
-                              child: const IOPanel(),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-
-              // Bottom: status bar
-              Padding(
-                padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
-                child: GlassPanel(
-                  blur: 12,
-                  borderRadius: BorderRadius.circular(14),
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                  child: const CircuitStatusBar(),
-                ),
-              ),
-            ],
-          ),
+    return switch (preset) {
+      ThemePreset.refinedLight || ThemePreset.refinedDark => _RefinedEditorView(
+          filenameController: _filenameController,
+          chipDrawerOpen: _chipDrawerOpen,
+          ioDrawerOpen: _ioDrawerOpen,
+          onBack: () => Navigator.of(context).maybePop(),
+          onToggleChips: () =>
+              setState(() => _chipDrawerOpen = !_chipDrawerOpen),
+          onToggleIO: () =>
+              setState(() => _ioDrawerOpen = !_ioDrawerOpen),
+          onNew: _newCircuit,
+          onSave: _saveCircuit,
+          onLoad: _loadCircuit,
+          onReset: _resetSimulation,
         ),
-      ),
-    );
+      ThemePreset.industrial => _FixedEditorView(
+          filenameController: _filenameController,
+          technical: true,
+          onBack: () => Navigator.of(context).maybePop(),
+          onNew: _newCircuit,
+          onSave: _saveCircuit,
+          onLoad: _loadCircuit,
+          onReset: _resetSimulation,
+        ),
+      ThemePreset.minimal => _MinimalEditorView(
+          filenameController: _filenameController,
+          onBack: () => Navigator.of(context).maybePop(),
+          onNew: _newCircuit,
+          onSave: _saveCircuit,
+          onLoad: _loadCircuit,
+          onReset: _resetSimulation,
+        ),
+    };
   }
 
   void _newCircuit() {
@@ -238,6 +153,832 @@ class _CircuitEditorScreenState extends ConsumerState<CircuitEditorScreen> {
           side: BorderSide(color: p.glassBorder),
         ),
         duration: const Duration(seconds: 2),
+      ),
+    );
+  }
+}
+
+/// Refined glass editor: floating header, sliding module drawers, glass
+/// status strip.
+class _RefinedEditorView extends ConsumerWidget {
+  final TextEditingController filenameController;
+  final bool chipDrawerOpen;
+  final bool ioDrawerOpen;
+  final VoidCallback onBack;
+  final VoidCallback onToggleChips;
+  final VoidCallback onToggleIO;
+  final VoidCallback onNew;
+  final VoidCallback onSave;
+  final VoidCallback onLoad;
+  final VoidCallback onReset;
+
+  const _RefinedEditorView({
+    required this.filenameController,
+    required this.chipDrawerOpen,
+    required this.ioDrawerOpen,
+    required this.onBack,
+    required this.onToggleChips,
+    required this.onToggleIO,
+    required this.onNew,
+    required this.onSave,
+    required this.onLoad,
+    required this.onReset,
+  });
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final p = AppTheme.of(context);
+
+    return Scaffold(
+      backgroundColor: p.background,
+      body: GlassBackground(
+        child: SafeArea(
+          child: Column(
+            children: [
+              _GlassHeader(
+                filenameController: filenameController,
+                chipsOpen: chipDrawerOpen,
+                ioOpen: ioDrawerOpen,
+                onBack: onBack,
+                onToggleChips: onToggleChips,
+                onToggleIO: onToggleIO,
+                onNew: onNew,
+                onSave: onSave,
+                onLoad: onLoad,
+                onReset: onReset,
+              ),
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
+                  child: Stack(
+                    children: [
+                      Positioned.fill(
+                        child: GlassPanel(
+                          blur: 26,
+                          color: Colors.transparent,
+                          padding: const EdgeInsets.all(4),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(16),
+                            child: const CircuitCanvas(),
+                          ),
+                        ),
+                      ),
+                      const Positioned(
+                        top: 14,
+                        left: 14,
+                        child: CircuitToolbar(),
+                      ),
+                      Positioned(
+                        top: 14,
+                        left: 0,
+                        right: 0,
+                        child: Center(
+                          child: _SimulationControls(
+                            onChanged: () => ref
+                                .read(circuitProvider.notifier)
+                                .forceUpdate(),
+                          ),
+                        ),
+                      ),
+                      Positioned(
+                        top: 60,
+                        bottom: 8,
+                        left: 8,
+                        width: 252,
+                        child: AnimatedSlide(
+                          offset: chipDrawerOpen
+                              ? Offset.zero
+                              : const Offset(-1.18, 0),
+                          duration: const Duration(milliseconds: 240),
+                          curve: Curves.easeOutCubic,
+                          child: IgnorePointer(
+                            ignoring: !chipDrawerOpen,
+                            child: _ModuleDrawer(
+                              onClose: onToggleChips,
+                              child: const ChipLibraryPanel(),
+                            ),
+                          ),
+                        ),
+                      ),
+                      Positioned(
+                        top: 60,
+                        bottom: 8,
+                        right: 8,
+                        width: 232,
+                        child: AnimatedSlide(
+                          offset: ioDrawerOpen
+                              ? Offset.zero
+                              : const Offset(1.18, 0),
+                          duration: const Duration(milliseconds: 240),
+                          curve: Curves.easeOutCubic,
+                          child: IgnorePointer(
+                            ignoring: !ioDrawerOpen,
+                            child: _ModuleDrawer(
+                              onClose: onToggleIO,
+                              child: const IOPanel(),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+                child: GlassPanel(
+                  blur: 12,
+                  borderRadius: BorderRadius.circular(14),
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  child: const CircuitStatusBar(),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Industrial and minimal editors share a fixed-panel layout; the palette
+/// supplies the angular/rounded, dark/light visual language.
+class _FixedEditorView extends ConsumerWidget {
+  final TextEditingController filenameController;
+  final bool technical;
+  final VoidCallback onBack;
+  final VoidCallback onNew;
+  final VoidCallback onSave;
+  final VoidCallback onLoad;
+  final VoidCallback onReset;
+
+  const _FixedEditorView({
+    required this.filenameController,
+    required this.technical,
+    required this.onBack,
+    required this.onNew,
+    required this.onSave,
+    required this.onLoad,
+    required this.onReset,
+  });
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final p = AppTheme.of(context);
+
+    return Scaffold(
+      backgroundColor: p.background,
+      body: GlassBackground(
+        child: SafeArea(
+          child: Column(
+            children: [
+              GlassPanel(
+                margin: const EdgeInsets.fromLTRB(8, 8, 8, 0),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                child: Row(
+                  children: [
+                    _HeaderButton(
+                      icon: Icons.arrow_back_rounded,
+                      tooltip: '返回首页',
+                      onPressed: onBack,
+                    ),
+                    const SizedBox(width: 6),
+                    Icon(Icons.memory, size: 18, color: p.accent),
+                    const SizedBox(width: 8),
+                    Text(
+                      technical ? 'LOGICSIM' : 'LogicSim',
+                      style: TextStyle(
+                        color: p.textPrimary,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 15,
+                        letterSpacing: technical ? 2 : 0,
+                      ),
+                    ),
+                    const SizedBox(width: 14),
+                    Flexible(
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 150),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 10, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: p.surfaceLight,
+                            borderRadius: BorderRadius.circular(
+                                p.panelRadius * 0.6),
+                          ),
+                          child: TextField(
+                            controller: filenameController,
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: p.textPrimary,
+                            ),
+                            decoration: const InputDecoration(
+                              isDense: true,
+                              contentPadding: EdgeInsets.zero,
+                              border: InputBorder.none,
+                              hintText: '文件名',
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const Spacer(),
+                    const ThemePickerButton(showLabel: false),
+                    const SizedBox(width: 6),
+                    _HeaderButton(
+                      icon: Icons.add_rounded,
+                      tooltip: '新建电路',
+                      onPressed: onNew,
+                    ),
+                    _HeaderButton(
+                      icon: Icons.save_rounded,
+                      tooltip: '保存电路',
+                      onPressed: onSave,
+                    ),
+                    _HeaderButton(
+                      icon: Icons.folder_open_rounded,
+                      tooltip: '载入电路',
+                      onPressed: onLoad,
+                    ),
+                    _HeaderButton(
+                      icon: Icons.replay_rounded,
+                      tooltip: '重置仿真',
+                      onPressed: onReset,
+                    ),
+                  ],
+                ),
+              ),
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.all(8),
+                  child: Row(
+                    children: [
+                      const SizedBox(
+                        width: 248,
+                        child: GlassPanel(child: ChipLibraryPanel()),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Stack(
+                          children: [
+                            Positioned.fill(
+                              child: GlassPanel(
+                                color: Colors.transparent,
+                                padding: const EdgeInsets.all(3),
+                                child: ClipRRect(
+                                  borderRadius: BorderRadius.circular(
+                                      p.panelRadius * 0.6),
+                                  child: const CircuitCanvas(),
+                                ),
+                              ),
+                            ),
+                            const Positioned(
+                              top: 10,
+                              left: 10,
+                              child: CircuitToolbar(),
+                            ),
+                            Positioned(
+                              top: 10,
+                              left: 0,
+                              right: 0,
+                              child: Center(
+                                child: _SimulationControls(
+                                  onChanged: () => ref
+                                      .read(circuitProvider.notifier)
+                                      .forceUpdate(),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      const SizedBox(
+                        width: 224,
+                        child: GlassPanel(child: IOPanel()),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const Padding(
+                padding: EdgeInsets.fromLTRB(8, 0, 8, 8),
+                child: GlassPanel(
+                  padding: EdgeInsets.symmetric(horizontal: 10),
+                  child: CircuitStatusBar(),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Minimal editor: thin hairline top bar, a vertical tool rail between the
+/// chip library and the canvas, and hairline-separated side panels.
+class _MinimalEditorView extends ConsumerStatefulWidget {
+  final TextEditingController filenameController;
+  final VoidCallback onBack;
+  final VoidCallback onNew;
+  final VoidCallback onSave;
+  final VoidCallback onLoad;
+  final VoidCallback onReset;
+
+  const _MinimalEditorView({
+    required this.filenameController,
+    required this.onBack,
+    required this.onNew,
+    required this.onSave,
+    required this.onLoad,
+    required this.onReset,
+  });
+
+  @override
+  ConsumerState<_MinimalEditorView> createState() => _MinimalEditorViewState();
+}
+
+class _MinimalEditorViewState extends ConsumerState<_MinimalEditorView> {
+  bool _ioOpen = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = AppTheme.of(context);
+
+    return Scaffold(
+      backgroundColor: p.background,
+      body: SafeArea(
+        child: Column(
+          children: [
+            // Flat hairline top bar.
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: p.surface,
+                border: Border(
+                  bottom: BorderSide(color: p.glassBorder),
+                ),
+              ),
+              child: Row(
+                children: [
+                  _MinimalHeaderAction(
+                    icon: Icons.arrow_back_rounded,
+                    tooltip: '返回首页',
+                    onPressed: widget.onBack,
+                  ),
+                  const SizedBox(width: 10),
+                  Text(
+                    'LogicSim',
+                    style: TextStyle(
+                      color: p.textPrimary,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(width: 18),
+                  SizedBox(
+                    width: 180,
+                    child: TextField(
+                      controller: widget.filenameController,
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: p.textPrimary,
+                      ),
+                      decoration: InputDecoration(
+                        isDense: true,
+                        hintText: '文件名',
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 6,
+                        ),
+                        fillColor: p.surfaceLight,
+                        border: OutlineInputBorder(
+                          borderRadius:
+                              BorderRadius.circular(p.panelRadius * 0.6),
+                          borderSide: BorderSide.none,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const Spacer(),
+                  const ThemePickerButton(showLabel: false),
+                  const SizedBox(width: 12),
+                  _MinimalHeaderAction(
+                    icon: Icons.add_rounded,
+                    tooltip: '新建电路',
+                    onPressed: widget.onNew,
+                  ),
+                  _MinimalHeaderAction(
+                    icon: Icons.save_rounded,
+                    tooltip: '保存电路',
+                    onPressed: widget.onSave,
+                  ),
+                  _MinimalHeaderAction(
+                    icon: Icons.folder_open_rounded,
+                    tooltip: '载入电路',
+                    onPressed: widget.onLoad,
+                  ),
+                  _MinimalHeaderAction(
+                    icon: Icons.replay_rounded,
+                    tooltip: '重置仿真',
+                    onPressed: widget.onReset,
+                  ),
+                ],
+              ),
+            ),
+
+            // Tool + module strip below the top bar.
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+              decoration: BoxDecoration(
+                color: p.surface,
+                border: Border(
+                  bottom: BorderSide(color: p.glassBorder),
+                ),
+              ),
+              child: Row(
+                children: [
+                  const _MinimalToolSegmented(),
+                  const SizedBox(width: 16),
+                  Container(width: 1, height: 20, color: p.glassBorder),
+                  const SizedBox(width: 16),
+                  _MinimalDropdownToggle(
+                    open: _ioOpen,
+                    onTap: () => setState(() => _ioOpen = !_ioOpen),
+                  ),
+                  const Spacer(),
+                  const _MinimalPinToggle(),
+                ],
+              ),
+            ),
+
+            // Collapsible I/O dropdown.
+            AnimatedCrossFade(
+              duration: const Duration(milliseconds: 180),
+              crossFadeState: _ioOpen
+                  ? CrossFadeState.showFirst
+                  : CrossFadeState.showSecond,
+              firstChild: Container(
+                height: 190,
+                decoration: BoxDecoration(
+                  color: p.surface,
+                  border: Border(
+                    bottom: BorderSide(color: p.glassBorder),
+                  ),
+                ),
+                child: const Center(
+                  child: SizedBox(
+                    width: 640,
+                    child: IOPanel(),
+                  ),
+                ),
+              ),
+              secondChild: const SizedBox(width: double.infinity),
+            ),
+
+            Expanded(
+              child: Stack(
+                children: [
+                  Positioned.fill(
+                    child: Container(
+                      color: p.canvasBg,
+                      child: const CircuitCanvas(),
+                    ),
+                  ),
+                  Positioned(
+                    bottom: 12,
+                    right: 16,
+                    child: _SimulationControls(
+                      onChanged: () => ref
+                          .read(circuitProvider.notifier)
+                          .forceUpdate(),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            // Bottom chip shelf.
+            const _MinimalChipShelf(),
+
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+              decoration: BoxDecoration(
+                color: p.surface,
+                border: Border(
+                  top: BorderSide(color: p.glassBorder),
+                ),
+              ),
+              child: const CircuitStatusBar(),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Segmented tool buttons shown in the minimal top strip.
+class _MinimalToolSegmented extends ConsumerWidget {
+  const _MinimalToolSegmented();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final p = AppTheme.of(context);
+    final tool = ref.watch(editorToolProvider);
+
+    Widget option(EditorTool value, String label) {
+      final active = tool == value;
+      return Tooltip(
+        message: label,
+        child: InkWell(
+          onTap: () => ref.read(editorToolProvider.notifier).state = value,
+          borderRadius: BorderRadius.circular(6),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            child: Text(
+              label,
+              style: TextStyle(
+                fontSize: 12,
+                color: active ? p.accent : p.textSecondary,
+                fontWeight: active ? FontWeight.w600 : FontWeight.normal,
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        option(EditorTool.wiring, '导线'),
+        option(EditorTool.dragging, '移动'),
+        option(EditorTool.deleting, '删除'),
+      ],
+    );
+  }
+}
+
+/// Collapsible dropdown header for the I/O module.
+class _MinimalDropdownToggle extends StatelessWidget {
+  final bool open;
+  final VoidCallback onTap;
+
+  const _MinimalDropdownToggle({required this.open, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final p = AppTheme.of(context);
+
+    return Tooltip(
+      message: '输入 / 输出',
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(6),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.tune, size: 16, color: p.textPrimary),
+              const SizedBox(width: 6),
+              Text(
+                '输入 / 输出',
+                style: TextStyle(
+                  color: p.textPrimary,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              const SizedBox(width: 4),
+              AnimatedRotation(
+                turns: open ? 0.5 : 0,
+                duration: const Duration(milliseconds: 160),
+                child: Icon(
+                  Icons.keyboard_arrow_down,
+                  size: 16,
+                  color: p.textSecondary,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Pin visibility toggle in the minimal top strip.
+class _MinimalPinToggle extends ConsumerWidget {
+  const _MinimalPinToggle();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final p = AppTheme.of(context);
+    final showPins = ref.watch(showPinsProvider);
+
+    return Tooltip(
+      message: showPins ? '隐藏引脚' : '显示引脚',
+      child: InkWell(
+        onTap: () =>
+            ref.read(showPinsProvider.notifier).state = !showPins,
+        borderRadius: BorderRadius.circular(6),
+        child: Padding(
+          padding: const EdgeInsets.all(7),
+          child: Icon(
+            showPins ? Icons.circle : Icons.circle_outlined,
+            size: 16,
+            color: showPins ? p.accent : p.textSecondary,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Bottom horizontal chip library for the minimal theme.
+class _MinimalChipShelf extends ConsumerStatefulWidget {
+  const _MinimalChipShelf();
+
+  @override
+  ConsumerState<_MinimalChipShelf> createState() => _MinimalChipShelfState();
+}
+
+class _MinimalChipShelfState extends ConsumerState<_MinimalChipShelf> {
+  final _searchController = TextEditingController();
+  String _query = '';
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  List<ChipDefinition> get _chips {
+    final all = ChipFactory.allDefinitions;
+    if (_query.isEmpty) return all;
+    final q = _query.toLowerCase();
+    return all
+        .where((c) =>
+            c.model.toLowerCase().contains(q) ||
+            c.description.toLowerCase().contains(q))
+        .toList();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final p = AppTheme.of(context);
+    final chips = _chips;
+
+    return Container(
+      height: 112,
+      decoration: BoxDecoration(
+        color: p.surface,
+        border: Border(
+          top: BorderSide(color: p.glassBorder),
+        ),
+      ),
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Row(
+        children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            child: SizedBox(
+              width: 190,
+              child: TextField(
+                controller: _searchController,
+                onChanged: (v) => setState(() => _query = v),
+                style: TextStyle(fontSize: 12, color: p.textPrimary),
+                decoration: InputDecoration(
+                  isDense: true,
+                  hintText: '搜索芯片',
+                  hintStyle:
+                      TextStyle(fontSize: 12, color: p.textSecondary),
+                  prefixIcon:
+                      Icon(Icons.search, size: 16, color: p.textSecondary),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 8,
+                  ),
+                ),
+              ),
+            ),
+          ),
+          Container(width: 1, height: 48, color: p.glassBorder),
+          const SizedBox(width: 8),
+          Expanded(
+            child: ListView.builder(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(horizontal: 6),
+              itemCount: chips.length,
+              itemBuilder: (context, index) =>
+                  _ShelfChipCard(definition: chips[index]),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ShelfChipCard extends ConsumerWidget {
+  final ChipDefinition definition;
+
+  const _ShelfChipCard({required this.definition});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final p = AppTheme.of(context);
+
+    return Tooltip(
+      message: definition.description,
+      child: Container(
+        width: 112,
+        margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+        child: Material(
+          color: p.surfaceLight,
+          borderRadius: BorderRadius.circular(8),
+          child: InkWell(
+            borderRadius: BorderRadius.circular(8),
+            onTap: () {
+              final random = Random();
+              final x = 420.0 + random.nextDouble() * 180 - 90;
+              final y = 320.0 + random.nextDouble() * 160 - 80;
+              ref
+                  .read(circuitProvider.notifier)
+                  .addChip(definition.model, Offset(x, y));
+            },
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: p.glassBorder),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    definition.model,
+                    style: TextStyle(
+                      color: p.accent,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 3),
+                  Expanded(
+                    child: Text(
+                      definition.description,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: p.textSecondary,
+                        fontSize: 10,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _MinimalHeaderAction extends StatelessWidget {
+  final IconData icon;
+  final String tooltip;
+  final VoidCallback onPressed;
+
+  const _MinimalHeaderAction({
+    required this.icon,
+    required this.tooltip,
+    required this.onPressed,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final p = AppTheme.of(context);
+
+    return Tooltip(
+      message: tooltip,
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(6),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(6),
+          onTap: onPressed,
+          hoverColor: p.accent.withValues(alpha: 0.08),
+          child: Padding(
+            padding: const EdgeInsets.all(6),
+            child: Icon(icon, size: 19, color: p.textPrimary),
+          ),
+        ),
       ),
     );
   }

@@ -9,6 +9,10 @@ import '../models/signal_state.dart';
 /// toggles.
 class ThemePalette extends ThemeExtension<ThemePalette> {
   final bool isDark;
+  final bool isGlass;
+  final bool hasGradient;
+  final bool hasGlow;
+  final double panelRadius;
 
   // Base surfaces.
   final Color background;
@@ -69,6 +73,10 @@ class ThemePalette extends ThemeExtension<ThemePalette> {
 
   const ThemePalette({
     required this.isDark,
+    required this.isGlass,
+    required this.hasGradient,
+    required this.hasGlow,
+    required this.panelRadius,
     required this.background,
     required this.surface,
     required this.surfaceLight,
@@ -130,6 +138,10 @@ class ThemePalette extends ThemeExtension<ThemePalette> {
   @override
   ThemePalette copyWith({
     bool? isDark,
+    bool? isGlass,
+    bool? hasGradient,
+    bool? hasGlow,
+    double? panelRadius,
     Color? background,
     Color? surface,
     Color? surfaceLight,
@@ -175,6 +187,10 @@ class ThemePalette extends ThemeExtension<ThemePalette> {
   }) {
     return ThemePalette(
       isDark: isDark ?? this.isDark,
+      isGlass: isGlass ?? this.isGlass,
+      hasGradient: hasGradient ?? this.hasGradient,
+      hasGlow: hasGlow ?? this.hasGlow,
+      panelRadius: panelRadius ?? this.panelRadius,
       background: background ?? this.background,
       surface: surface ?? this.surface,
       surfaceLight: surfaceLight ?? this.surfaceLight,
@@ -235,6 +251,10 @@ class AppTheme {
 
   static const ThemePalette light = ThemePalette(
     isDark: false,
+    isGlass: true,
+    hasGradient: true,
+    hasGlow: true,
+    panelRadius: 18,
     background: Color(0xFFF2F5FB),
     surface: Color(0xFFFFFFFF),
     surfaceLight: Color(0xFFEDF2FA),
@@ -281,6 +301,10 @@ class AppTheme {
 
   static const ThemePalette dark = ThemePalette(
     isDark: true,
+    isGlass: true,
+    hasGradient: true,
+    hasGlow: true,
+    panelRadius: 18,
     background: Color(0xFF17191E),
     surface: Color(0xFF20232A),
     surfaceLight: Color(0xFF2A2E37),
@@ -301,8 +325,8 @@ class AppTheme {
     chipBorderIndustrial: Color(0xFF4A6356),
     chipTextIndustrial: Color(0xFFF2F6F8),
     chipTextSecondaryIndustrial: Color(0xFFB8C3CC),
-    chipBodyRefined: Color(0xE8464F5F),
-    chipBorderRefined: Color(0xFF818B9C),
+    chipBodyRefined: Color(0xE8384150),
+    chipBorderRefined: Color(0xFF6E7888),
     chipGlossRefined: Color(0xFFFFFFFF),
     chipTextRefined: Color(0xFFE9ECF2),
     chipTextSecondaryRefined: Color(0xFFB7BFCD),
@@ -325,9 +349,116 @@ class AppTheme {
     glassShadow: Color(0x66000000),
   );
 
+  /// Industrial instrument-panel look: graphite surfaces, hairline borders,
+  /// an ember accent, and a dark green breadboard canvas.
+  static const ThemePalette industrial = ThemePalette(
+    isDark: true,
+    isGlass: false,
+    hasGradient: true,
+    hasGlow: false,
+    panelRadius: 6,
+    background: Color(0xFF121417),
+    surface: Color(0xFF191C21),
+    surfaceLight: Color(0xFF22262D),
+    accent: Color(0xFFFFA02E),
+    accentGreen: Color(0xFF3DDC97),
+    accentRed: Color(0xFFFF5C5C),
+    accentYellow: Color(0xFFFFC94B),
+    textPrimary: Color(0xFFE8EBEF),
+    textSecondary: Color(0xFF8B939E),
+    signalHigh: Color(0xFF3DDC97),
+    signalLow: Color(0xFF56A8FF),
+    signalHighZ: Color(0xFF6E7680),
+    signalUnknown: Color(0xFFFF5C5C),
+    chipBody: Color(0xFF2B313A),
+    chipBorder: Color(0xFF454D58),
+    chipBorderSelected: Color(0xFFFFA02E),
+    chipBodyIndustrial: Color(0xFF1A1E22),
+    chipBorderIndustrial: Color(0xFF4A5A50),
+    chipTextIndustrial: Color(0xFFE8EBEF),
+    chipTextSecondaryIndustrial: Color(0xFF9AA3AD),
+    chipBodyRefined: Color(0xFF464F5F),
+    chipBorderRefined: Color(0xFF818B9C),
+    chipGlossRefined: Color(0xFFFFFFFF),
+    chipTextRefined: Color(0xFFE9ECF2),
+    chipTextSecondaryRefined: Color(0xFFB7BFCD),
+    chipAccentRefined: Color(0xFF8FA8FF),
+    pinInput: Color(0xFF6FB7FF),
+    pinOutput: Color(0xFFFFC94B),
+    pinPower: Color(0xFFFF6B5C),
+    pinGround: Color(0xFF6E7680),
+    wireDefault: Color(0xFF6E7680),
+    wireHigh: Color(0xFF3DDC97),
+    wireLow: Color(0xFF56A8FF),
+    wireConflict: Color(0xFFFF5C5C),
+    wireSelected: Color(0xFFFFC94B),
+    gridDot: Color(0xFF3A4250),
+    canvasBg: Color(0xFF1B1E25),
+    gridDotIndustrial: Color(0xFF2B5C44),
+    canvasBgIndustrial: Color(0xFF14372C),
+    glassTint: Color(0xFF1A1D22),
+    glassBorder: Color(0xFF2B3038),
+    glassShadow: Color(0x00000000),
+  );
+
+  /// Minimal flat look: white surfaces, thin borders, one blue accent.
+  static const ThemePalette minimal = ThemePalette(
+    isDark: false,
+    isGlass: false,
+    hasGradient: false,
+    hasGlow: false,
+    panelRadius: 10,
+    background: Color(0xFFFAFAFA),
+    surface: Color(0xFFFFFFFF),
+    surfaceLight: Color(0xFFF1F3F5),
+    accent: Color(0xFF2F6BFF),
+    accentGreen: Color(0xFF17A36B),
+    accentRed: Color(0xFFE5484D),
+    accentYellow: Color(0xFFE8A13A),
+    textPrimary: Color(0xFF1A1D21),
+    textSecondary: Color(0xFF8A929C),
+    signalHigh: Color(0xFF17A36B),
+    signalLow: Color(0xFF2F6BFF),
+    signalHighZ: Color(0xFF9AA3AD),
+    signalUnknown: Color(0xFFE5484D),
+    chipBody: Color(0xFFF7F8FA),
+    chipBorder: Color(0xFFD5DAE0),
+    chipBorderSelected: Color(0xFF2F6BFF),
+    chipBodyIndustrial: Color(0xFFFFFFFF),
+    chipBorderIndustrial: Color(0xFFC9CFD6),
+    chipTextIndustrial: Color(0xFF1A1D21),
+    chipTextSecondaryIndustrial: Color(0xFF8A929C),
+    chipBodyRefined: Color(0xFFF1F3F5),
+    chipBorderRefined: Color(0xFFC9CFD6),
+    chipGlossRefined: Color(0xFFFFFFFF),
+    chipTextRefined: Color(0xFF1A1D21),
+    chipTextSecondaryRefined: Color(0xFF8A929C),
+    chipAccentRefined: Color(0xFF2F6BFF),
+    pinInput: Color(0xFF4D8DFF),
+    pinOutput: Color(0xFFE8A13A),
+    pinPower: Color(0xFFE5484D),
+    pinGround: Color(0xFF8A929C),
+    wireDefault: Color(0xFFB8C0C8),
+    wireHigh: Color(0xFF17A36B),
+    wireLow: Color(0xFF2F6BFF),
+    wireConflict: Color(0xFFE5484D),
+    wireSelected: Color(0xFFE8A13A),
+    gridDot: Color(0xFFE4E8EC),
+    canvasBg: Color(0xFFFFFFFF),
+    gridDotIndustrial: Color(0xFFE4E8EC),
+    canvasBgIndustrial: Color(0xFFFFFFFF),
+    glassTint: Color(0xFFFFFFFF),
+    glassBorder: Color(0xFFE4E7EB),
+    glassShadow: Color(0x0A000000),
+  );
+
   static ThemeData get lightTheme => _build(light);
 
   static ThemeData get darkTheme => _build(dark);
+
+  static ThemeData get industrialTheme => _build(industrial);
+
+  static ThemeData get minimalTheme => _build(minimal);
 
   /// The active palette for the current [ThemeMode].
   static ThemePalette of(BuildContext context) =>
@@ -363,7 +494,7 @@ class AppTheme {
         elevation: 0,
         margin: EdgeInsets.zero,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(p.panelRadius),
         ),
       ),
       inputDecorationTheme: InputDecorationTheme(
@@ -373,11 +504,11 @@ class AppTheme {
         contentPadding:
             const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
+          borderRadius: BorderRadius.circular(p.panelRadius),
           borderSide: BorderSide.none,
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
+          borderRadius: BorderRadius.circular(p.panelRadius),
           borderSide: BorderSide(color: p.accent, width: 1.4),
         ),
       ),
@@ -393,7 +524,7 @@ class AppTheme {
           foregroundColor: Colors.white,
           elevation: 0,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(10),
+            borderRadius: BorderRadius.circular(p.panelRadius),
           ),
           padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
         ),

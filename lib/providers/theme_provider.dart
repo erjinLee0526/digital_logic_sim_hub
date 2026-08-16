@@ -1,20 +1,48 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'editor_provider.dart';
+
 /// The selectable visual themes of the app.
+///
+/// Each preset owns its own palette, home screen design, and editor design.
 enum ThemePreset {
-  /// Light glass UI with the classic industrial chip look.
-  dayIndustrial,
+  /// Refined glass look in light mode.
+  refinedLight,
 
-  /// Light glass UI with the refined pearl chip look.
-  dayRefined,
+  /// Refined glass look in dark mode.
+  refinedDark,
 
-  /// Dark gray glass UI with the classic industrial chip look.
-  nightIndustrial,
+  /// Industrial instrument-panel look.
+  industrial,
 
-  /// Dark gray glass UI with the refined pearl chip look.
-  nightRefined,
+  /// Minimal flat look.
+  minimal,
+}
+
+/// The chip rendering style used by [preset].
+ChipStyle chipStyleForPreset(ThemePreset preset) {
+  switch (preset) {
+    case ThemePreset.refinedLight:
+    case ThemePreset.refinedDark:
+      return ChipStyle.refined;
+    case ThemePreset.industrial:
+    case ThemePreset.minimal:
+      return ChipStyle.industrial;
+  }
+}
+
+/// Whether pin dots are visible by default for [preset].
+bool showPinsForPreset(ThemePreset preset) {
+  switch (preset) {
+    case ThemePreset.refinedLight:
+    case ThemePreset.refinedDark:
+      return false;
+    case ThemePreset.industrial:
+    case ThemePreset.minimal:
+      return true;
+  }
 }
 
 /// The currently selected theme preset.
 final themePresetProvider =
-    StateProvider<ThemePreset>((ref) => ThemePreset.dayIndustrial);
+    StateProvider<ThemePreset>((ref) => ThemePreset.refinedLight);

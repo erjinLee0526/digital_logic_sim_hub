@@ -12,9 +12,14 @@ class DigitalLogicSimApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final preset = ref.watch(themePresetProvider);
-    final isDay = preset == ThemePreset.dayIndustrial ||
-        preset == ThemePreset.dayRefined;
-    final theme = isDay ? AppTheme.lightTheme : AppTheme.darkTheme;
+    final isDay = preset == ThemePreset.refinedLight ||
+        preset == ThemePreset.minimal;
+    final theme = switch (preset) {
+      ThemePreset.refinedLight => AppTheme.lightTheme,
+      ThemePreset.refinedDark => AppTheme.darkTheme,
+      ThemePreset.industrial => AppTheme.industrialTheme,
+      ThemePreset.minimal => AppTheme.minimalTheme,
+    };
 
     return MaterialApp(
       title: 'Digital Logic Simulator',

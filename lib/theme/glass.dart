@@ -20,65 +20,72 @@ class GlassBackground extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final p = AppTheme.of(context);
-    final gradient = p.isDark
-        ? const LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              Color(0xFF191C25),
-              Color(0xFF222530),
-              Color(0xFF191F26),
-            ],
-          )
-        : const LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              Color(0xFFE5ECFF),
-              Color(0xFFF6F4FF),
-              Color(0xFFE8F7F1),
-            ],
-          );
+    final LinearGradient? gradient = p.hasGradient
+        ? (p.isDark
+            ? const LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  Color(0xFF191C25),
+                  Color(0xFF222530),
+                  Color(0xFF191F26),
+                ],
+              )
+            : const LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  Color(0xFFE5ECFF),
+                  Color(0xFFF6F4FF),
+                  Color(0xFFE8F7F1),
+                ],
+              ))
+        : null;
 
     return ClipRRect(
       borderRadius: borderRadius ?? BorderRadius.zero,
       child: Container(
-        decoration: BoxDecoration(gradient: gradient),
+        decoration: BoxDecoration(
+          gradient: gradient,
+          color: gradient == null ? p.background : null,
+        ),
         child: Stack(
           fit: StackFit.expand,
           children: [
-            _GlowBlob(
-              color: p.isDark
-                  ? const Color(0xFF35406A)
-                  : const Color(0xFFB7CEFF),
-              alignment: const Alignment(-0.85, -0.95),
-              size: 460,
-              opacity: p.isDark ? 0.42 : 0.62,
-            ),
-            _GlowBlob(
-              color: p.isDark
-                  ? const Color(0xFF2B5144)
-                  : const Color(0xFFBDF2DE),
-              alignment: const Alignment(0.95, -0.55),
-              size: 400,
-              opacity: p.isDark ? 0.38 : 0.62,
-            ),
-            _GlowBlob(
-              color: p.isDark
-                  ? const Color(0xFF523A50)
-                  : const Color(0xFFFFD6E7),
-              alignment: const Alignment(-0.7, 1.1),
-              size: 420,
-              opacity: p.isDark ? 0.36 : 0.62,
-            ),
-            _GlowBlob(
-              color: p.isDark
-                  ? const Color(0xFF53452D)
-                  : const Color(0xFFFBE4BF),
-              alignment: const Alignment(0.8, 1.0),
-              size: 340,
-              opacity: p.isDark ? 0.34 : 0.62,
-            ),
+            if (p.hasGlow) ...[
+              _GlowBlob(
+                color: p.isDark
+                    ? const Color(0xFF35406A)
+                    : const Color(0xFFB7CEFF),
+                alignment: const Alignment(-0.85, -0.95),
+                size: 460,
+                opacity: p.isDark ? 0.42 : 0.62,
+              ),
+              _GlowBlob(
+                color: p.isDark
+                    ? const Color(0xFF2B5144)
+                    : const Color(0xFFBDF2DE),
+                alignment: const Alignment(0.95, -0.55),
+                size: 400,
+                opacity: p.isDark ? 0.38 : 0.62,
+              ),
+              _GlowBlob(
+                color: p.isDark
+                    ? const Color(0xFF523A50)
+                    : const Color(0xFFFFD6E7),
+                alignment: const Alignment(-0.7, 1.1),
+                size: 420,
+                opacity: p.isDark ? 0.36 : 0.62,
+              ),
+              _GlowBlob(
+                color: p.isDark
+                    ? const Color(0xFF53452D)
+                    : const Color(0xFFFBE4BF),
+                alignment: const Alignment(0.8, 1.0),
+                size: 340,
+                opacity: p.isDark ? 0.34 : 0.62,
+              ),
+            ],
             child,
           ],
         ),
@@ -156,7 +163,7 @@ class GlassPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final p = AppTheme.of(context);
-    final radius = borderRadius ?? BorderRadius.circular(18);
+    final radius = borderRadius ?? BorderRadius.circular(p.panelRadius);
     final tint = color ??
         (tintOpacity != null
             ? Colors.white.withValues(alpha: tintOpacity!)
@@ -173,19 +180,24 @@ class GlassPanel extends StatelessWidget {
           color: borderColor ?? p.glassBorder,
           width: borderWidth,
         ),
-        boxShadow: [
-          BoxShadow(
-            color: p.glassShadow,
-            blurRadius: 28,
-            offset: const Offset(0, 10),
-            spreadRadius: -8,
-          ),
-        ],
+        boxShadow: p.isGlass
+            ? [
+                BoxShadow(
+                  color: p.glassShadow,
+                  blurRadius: 28,
+                  offset: const Offset(0, 10),
+                  spreadRadius: -8,
+                ),
+              ]
+            : const [],
       ),
       child: ClipRRect(
         borderRadius: radius,
         child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: blur, sigmaY: blur),
+          filter: ImageFilter.blur(
+            sigmaX: p.isGlass ? blur : 0,
+            sigmaY: p.isGlass ? blur : 0,
+          ),
           child: padding == null
               ? child
               : Padding(padding: padding!, child: child),
@@ -215,6 +227,7 @@ class GlassButton extends StatelessWidget {
     final p = AppTheme.of(context);
     final enabled = onPressed != null;
     final foreground = primary ? p.accent : p.textPrimary;
+    final radius = p.isGlass ? 999.0 : p.panelRadius;
 
     return Opacity(
       opacity: enabled ? 1 : 0.45,
@@ -222,27 +235,29 @@ class GlassButton extends StatelessWidget {
         color: primary
             ? p.accent.withValues(alpha: 0.14)
             : p.glassTint,
-        borderRadius: BorderRadius.circular(999),
+        borderRadius: BorderRadius.circular(radius),
         child: InkWell(
-          borderRadius: BorderRadius.circular(999),
+          borderRadius: BorderRadius.circular(radius),
           onTap: onPressed,
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 12),
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(999),
+              borderRadius: BorderRadius.circular(radius),
               border: Border.all(
                 color: primary
                     ? p.accent.withValues(alpha: 0.42)
                     : p.glassBorder,
               ),
-              boxShadow: [
-                BoxShadow(
-                  color: p.glassShadow,
-                  blurRadius: 18,
-                  offset: const Offset(0, 6),
-                  spreadRadius: -6,
-                ),
-              ],
+              boxShadow: p.isGlass
+                  ? [
+                      BoxShadow(
+                        color: p.glassShadow,
+                        blurRadius: 18,
+                        offset: const Offset(0, 6),
+                        spreadRadius: -6,
+                      ),
+                    ]
+                  : const [],
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
@@ -279,10 +294,10 @@ class ThemePickerButton extends ConsumerWidget {
     final preset = ref.watch(themePresetProvider);
     final p = AppTheme.of(context);
     final (label, icon) = switch (preset) {
-      ThemePreset.dayIndustrial => ('日间工业', Icons.memory),
-      ThemePreset.dayRefined => ('日间精致', Icons.auto_awesome),
-      ThemePreset.nightIndustrial => ('夜间工业', Icons.memory),
-      ThemePreset.nightRefined => ('夜间精致', Icons.auto_awesome),
+      ThemePreset.refinedLight => ('浅色精致', Icons.auto_awesome),
+      ThemePreset.refinedDark => ('深色精致', Icons.nights_stay),
+      ThemePreset.industrial => ('工业', Icons.memory),
+      ThemePreset.minimal => ('简约', Icons.gesture),
     };
 
     Future<void> openPicker() async {
@@ -292,11 +307,10 @@ class ThemePickerButton extends ConsumerWidget {
       );
       if (selected == null) return;
       ref.read(themePresetProvider.notifier).state = selected;
-      final industrial = selected == ThemePreset.dayIndustrial ||
-          selected == ThemePreset.nightIndustrial;
       ref.read(chipStyleProvider.notifier).state =
-          industrial ? ChipStyle.industrial : ChipStyle.refined;
-      ref.read(showPinsProvider.notifier).state = industrial;
+          chipStyleForPreset(selected);
+      ref.read(showPinsProvider.notifier).state =
+          showPinsForPreset(selected);
     }
 
     if (!showLabel) {
@@ -410,19 +424,9 @@ class _ThemePickerDialog extends StatelessWidget {
             ),
             const SizedBox(height: 10),
             _ThemeOption(
-              preset: ThemePreset.dayIndustrial,
-              title: '日间工业',
-              subtitle: '白色界面 · 经典芯片',
-              preview: [
-                AppTheme.light.canvasBgIndustrial,
-                AppTheme.light.chipBodyIndustrial,
-                AppTheme.light.accent,
-              ],
-            ),
-            _ThemeOption(
-              preset: ThemePreset.dayRefined,
-              title: '日间精致',
-              subtitle: '白色界面 · 珠光芯片',
+              preset: ThemePreset.refinedLight,
+              title: '浅色精致',
+              subtitle: '白色玻璃 · 珠光芯片',
               preview: [
                 AppTheme.light.canvasBg,
                 AppTheme.light.chipBodyRefined,
@@ -430,23 +434,33 @@ class _ThemePickerDialog extends StatelessWidget {
               ],
             ),
             _ThemeOption(
-              preset: ThemePreset.nightIndustrial,
-              title: '夜间工业',
-              subtitle: '深色界面 · 经典芯片',
-              preview: [
-                AppTheme.dark.canvasBgIndustrial,
-                AppTheme.dark.chipBodyIndustrial,
-                AppTheme.dark.accent,
-              ],
-            ),
-            _ThemeOption(
-              preset: ThemePreset.nightRefined,
-              title: '夜间精致',
-              subtitle: '深色界面 · 珠光芯片',
+              preset: ThemePreset.refinedDark,
+              title: '深色精致',
+              subtitle: '深色玻璃 · 珠光芯片',
               preview: [
                 AppTheme.dark.canvasBg,
                 AppTheme.dark.chipBodyRefined,
                 AppTheme.dark.accent,
+              ],
+            ),
+            _ThemeOption(
+              preset: ThemePreset.industrial,
+              title: '工业',
+              subtitle: '石墨面板 · 绿色面包板',
+              preview: [
+                AppTheme.industrial.canvasBgIndustrial,
+                AppTheme.industrial.chipBodyIndustrial,
+                AppTheme.industrial.accent,
+              ],
+            ),
+            _ThemeOption(
+              preset: ThemePreset.minimal,
+              title: '简约',
+              subtitle: '白色平面 · 简洁线条',
+              preview: [
+                AppTheme.minimal.canvasBg,
+                AppTheme.minimal.chipBodyIndustrial,
+                AppTheme.minimal.accent,
               ],
             ),
           ],

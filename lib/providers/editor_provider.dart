@@ -28,10 +28,10 @@ final editorToolProvider = StateProvider<EditorTool>((ref) => EditorTool.wiring)
 
 /// Currently selected chip rendering style.
 final chipStyleProvider =
-    StateProvider<ChipStyle>((ref) => ChipStyle.industrial);
+    StateProvider<ChipStyle>((ref) => ChipStyle.refined);
 
 /// Whether the clickable pin dots are rendered on chips.
-final showPinsProvider = StateProvider<bool>((ref) => true);
+final showPinsProvider = StateProvider<bool>((ref) => false);
 
 /// The currently selected pin ID (for wiring mode).
 /// When non-null, the next pin click will create a wire.
