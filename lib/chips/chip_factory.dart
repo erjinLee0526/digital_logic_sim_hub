@@ -15,10 +15,13 @@ import 'ls74ls42.dart';
 import 'ls74ls74.dart';
 import 'ls74ls86.dart';
 import 'ls74ls136.dart';
+import 'ls74ls161.dart';
+import 'ls74ls164.dart';
 import 'ls74ls266.dart';
 import 'ls74ls175.dart';
 import 'ls74ls273.dart';
 import 'ls74ls373.dart';
+import 'ls74ls90.dart';
 
 /// Registry of all available chip types.
 /// To add a new 74LS chip:
@@ -41,10 +44,13 @@ class ChipFactory {
     '74LS74': () => Chip74LS74(),
     '74LS86': () => Chip74LS86(),
     '74LS136': () => Chip74LS136(),
+    '74LS161': () => Chip74LS161(),
+    '74LS164': () => Chip74LS164(),
     '74LS266': () => Chip74LS266(),
     '74LS175': () => Chip74LS175(),
     '74LS273': () => Chip74LS273(),
     '74LS373': () => Chip74LS373(),
+    '74LS90': () => Chip74LS90(),
     'INPUT': () => ChipInput(),
     'LED': () => ChipLED(),
   };

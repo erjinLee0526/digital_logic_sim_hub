@@ -21,8 +21,8 @@
 
 ### 文件归属
 
-- 组合逻辑代理负责：`lib/chips/ls74ls*.dart`、`lib/models/truth_table.dart`、`lib/widgets/chip_manual.dart` 及各自对应的测试文件。
-- 时序逻辑代理负责：`lib/engine/`、`lib/canvas/`、`lib/widgets/`（芯片手册除外）、`lib/theme/`、`lib/screens/`、`lib/providers/`、`lib/models/pin.dart`。
+- 组合逻辑代理负责：无内部状态的组合芯片文件 `lib/chips/ls74ls00/02/04/08/10/11/20/21/27/32/42/86/125/136/266...`、`lib/models/truth_table.dart`、`lib/widgets/chip_manual.dart` 及各芯片对应的测试文件 `test/chips/ls74lsXX_test.dart`。
+- 时序逻辑代理负责：带内部状态的时序芯片文件 `lib/chips/ls74ls74/175/273/373/164/90/161...`、`lib/engine/`、`lib/canvas/`、`lib/widgets/`（芯片手册除外）、`lib/theme/`、`lib/screens/`、`lib/providers/`、`lib/models/pin.dart` 及各芯片对应的测试文件。
 - 共享文件（双方都可能改，改前必须登记）：`lib/chips/chip_factory.dart`、`lib/models/chip_definition.dart`、`lib/models/signal_state.dart`、`lib/models/chip_instance.dart`、`lib/engine/simulation_engine.dart`、`lib/chips/io_input.dart`、`lib/chips/io_led.dart`。
 
 ### 改动共享文件前的流程
@@ -35,9 +35,11 @@
 
 ### Git 规则
 
-- 完成一个芯片或一个功能就小步提交；提交信息带前缀：`组合逻辑:`、`时序:`、`UI:`。
+- 每完成 2–3 个芯片提交一次；提交信息带前缀并列出新增芯片型号，例如 `组合逻辑: 新增 74LS10、74LS11、74LS20`、`时序: 新增 74LS175、74LS273`。
+- 每次提交时把新增芯片写进自己名下的日志：组合代理 → `doc/log-combinational-chips.md`，时序代理 → `doc/log-sequential-chips.md`。两份日志各自独占，互不改动。
 - 禁止 `git reset --hard`、`git checkout -- <path>`；需要回退一律用新提交。
-- 禁止 `git add -A`（会把对方未提交的工作卷进自己的提交）；按文件 `git add <具体路径>`。
+- 禁止 `git add -A`（会把对方未提交的工作卷进自己的提交）；按文件 `git add <具体路径>`，只加自己名下的文件。
+- 提交时若 git 报 `index.lock` 已存在，说明对方正在提交：等 3 秒重试，最多 5 次。
 - 每次开工先 `git status`，检查是否有对方的未提交改动，不要覆盖或删除。
 
 ### 冲突护栏
