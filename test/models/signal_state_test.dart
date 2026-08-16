@@ -143,5 +143,82 @@ void main() {
             SignalState.low);
       });
     });
+
+    group('multi-input gates', () {
+      test('NAND3 0 controls to 1, all-1 gives 0', () {
+        expect(
+            SignalState.nand3(
+                SignalState.low, SignalState.high, SignalState.high),
+            SignalState.high);
+        expect(
+            SignalState.nand3(
+                SignalState.high, SignalState.high, SignalState.high),
+            SignalState.low);
+      });
+      test('AND3 all-1 gives 1, 0 controls to 0', () {
+        expect(
+            SignalState.and3(
+                SignalState.high, SignalState.high, SignalState.high),
+            SignalState.high);
+        expect(
+            SignalState.and3(
+                SignalState.high, SignalState.low, SignalState.high),
+            SignalState.low);
+      });
+      test('NOR3 1 controls to 0, all-0 gives 1', () {
+        expect(
+            SignalState.nor3(
+                SignalState.low, SignalState.low, SignalState.high),
+            SignalState.low);
+        expect(
+            SignalState.nor3(
+                SignalState.low, SignalState.low, SignalState.low),
+            SignalState.high);
+      });
+      test('NAND4 all-1 gives 0, any-0 gives 1', () {
+        expect(
+            SignalState.nand4(SignalState.high, SignalState.high,
+                SignalState.high, SignalState.high),
+            SignalState.low);
+        expect(
+            SignalState.nand4(SignalState.high, SignalState.high,
+                SignalState.high, SignalState.low),
+            SignalState.high);
+      });
+      test('AND4 all-1 gives 1, any-0 gives 0', () {
+        expect(
+            SignalState.and4(SignalState.high, SignalState.high,
+                SignalState.high, SignalState.high),
+            SignalState.high);
+        expect(
+            SignalState.and4(SignalState.low, SignalState.high,
+                SignalState.high, SignalState.high),
+            SignalState.low);
+      });
+      test('highZ input gives unknown even with a controlling input', () {
+        expect(
+            SignalState.nand3(
+                SignalState.highZ, SignalState.low, SignalState.high),
+            SignalState.unknown);
+        expect(
+            SignalState.nand4(SignalState.high, SignalState.high,
+                SignalState.high, SignalState.highZ),
+            SignalState.unknown);
+        expect(
+            SignalState.nor3(
+                SignalState.highZ, SignalState.high, SignalState.low),
+            SignalState.unknown);
+      });
+      test('unknown input is dominated by a controlling input', () {
+        expect(
+            SignalState.nand3(
+                SignalState.unknown, SignalState.low, SignalState.high),
+            SignalState.high);
+        expect(
+            SignalState.nor3(
+                SignalState.unknown, SignalState.high, SignalState.low),
+            SignalState.low);
+      });
+    });
   });
 }

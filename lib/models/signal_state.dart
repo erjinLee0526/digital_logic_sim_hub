@@ -102,6 +102,42 @@ enum SignalState {
     return xor(a, b).not();
   }
 
+  /// 3-input NAND gate: NOT (A AND B AND C)
+  static SignalState nand3(SignalState a, SignalState b, SignalState c) {
+    if (a == highZ || b == highZ || c == highZ) return unknown;
+    if (a == low || b == low || c == low) return high;
+    if (a == high && b == high && c == high) return low;
+    return unknown;
+  }
+
+  /// 3-input AND gate
+  static SignalState and3(SignalState a, SignalState b, SignalState c) {
+    return nand3(a, b, c).not();
+  }
+
+  /// 3-input NOR gate: NOT (A OR B OR C)
+  static SignalState nor3(SignalState a, SignalState b, SignalState c) {
+    if (a == highZ || b == highZ || c == highZ) return unknown;
+    if (a == high || b == high || c == high) return low;
+    if (a == low && b == low && c == low) return high;
+    return unknown;
+  }
+
+  /// 4-input NAND gate: NOT (A AND B AND C AND D)
+  static SignalState nand4(
+      SignalState a, SignalState b, SignalState c, SignalState d) {
+    if (a == highZ || b == highZ || c == highZ || d == highZ) return unknown;
+    if (a == low || b == low || c == low || d == low) return high;
+    if (a == high && b == high && c == high && d == high) return low;
+    return unknown;
+  }
+
+  /// 4-input AND gate
+  static SignalState and4(
+      SignalState a, SignalState b, SignalState c, SignalState d) {
+    return nand4(a, b, c, d).not();
+  }
+
   /// NOT (inverter)
   static SignalState invert(SignalState a) {
     return a.not();
