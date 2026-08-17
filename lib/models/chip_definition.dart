@@ -45,6 +45,17 @@ abstract class ChipDefinition {
   /// output behavior that needs an external pull-up.
   List<String> get datasheetNotes => const [];
 
+  /// Whether this chip matches a library-search query.
+  ///
+  /// Matches the model number only (e.g. "74LS03"), never the description.
+  /// This keeps searches such as "3" from matching chips whose description
+  /// merely mentions "3 输入" or "三路".
+  bool matchesSearch(String query) {
+    final q = query.trim().toLowerCase();
+    if (q.isEmpty) return true;
+    return model.toLowerCase().contains(q);
+  }
+
   /// Evaluates the chip output for all output pins.
   /// [inputStates] maps pin number → current signal state.
   /// [internalState] holds the instance's mutable internal state; it must

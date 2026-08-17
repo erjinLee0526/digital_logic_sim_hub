@@ -14,6 +14,7 @@
 - 不要提交 `.dart_tool/`、`build/`、`windows/flutter/ephemeral/` 等生成产物（已被 `.gitignore` 排除）。
 - 依赖变更必须同时提交 `pubspec.yaml` 和 `pubspec.lock`。
 - 如需新增第三方包，在 `pubspec.yaml` 声明后运行 `flutter pub get`，不要手动修改 lock 文件。
+- 芯片库搜索只按型号名（`ChipDefinition.model`）做子串匹配，不得匹配功能描述（`description`）。例如搜索 `3` 只应命中型号含 `3` 的芯片（74LS03/32/37/38/136/373...），不能因为描述里有“三输入”“三门”而命中。实现见 `lib/models/chip_definition.dart` 的 `matchesSearch`，回归测试见 `test/models/chip_search_test.dart`。
 
 ## 多代理协作约定（两个代理并行开发时必读）
 
@@ -21,8 +22,8 @@
 
 ### 文件归属
 
-- 组合逻辑代理负责：无内部状态的组合芯片文件 `lib/chips/ls74ls00/02/04/08/10/11/20/21/27/32/42/86/125/136/266...`、`lib/models/truth_table.dart`、`lib/widgets/chip_manual.dart` 及各芯片对应的测试文件 `test/chips/ls74lsXX_test.dart`。
-- 时序逻辑代理负责：带内部状态的时序芯片文件 `lib/chips/ls74ls74/175/273/373/164/90/161...`、`lib/engine/`、`lib/canvas/`、`lib/widgets/`（芯片手册除外）、`lib/theme/`、`lib/screens/`、`lib/providers/`、`lib/models/pin.dart` 及各芯片对应的测试文件。
+- 组合逻辑代理负责：无内部状态的组合芯片文件 `lib/chips/ls74ls00/02/04/08/10/11/20/21/27/32/42/86/125/136/138/139/151/153/157/266/283...`、`lib/models/truth_table.dart`、`lib/widgets/chip_manual.dart` 及各芯片对应的测试文件 `test/chips/ls74lsXX_test.dart`。
+- 时序逻辑代理负责：带内部状态的时序芯片文件 `lib/chips/ls74ls74/93/160/161/163/164/165/175/194/273/373/393...`、`lib/engine/`、`lib/canvas/`、`lib/widgets/`（芯片手册除外）、`lib/theme/`、`lib/screens/`、`lib/providers/`、`lib/models/pin.dart` 及各芯片对应的测试文件。
 - 共享文件（双方都可能改，改前必须登记）：`lib/chips/chip_factory.dart`、`lib/models/chip_definition.dart`、`lib/models/signal_state.dart`、`lib/models/chip_instance.dart`、`lib/engine/simulation_engine.dart`、`lib/chips/io_input.dart`、`lib/chips/io_led.dart`。
 
 ### 改动共享文件前的流程

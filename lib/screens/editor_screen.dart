@@ -819,13 +819,8 @@ class _MinimalChipShelfState extends ConsumerState<_MinimalChipShelf> {
 
   List<ChipDefinition> get _chips {
     final all = ChipFactory.allDefinitions;
-    if (_query.isEmpty) return all;
-    final q = _query.toLowerCase();
-    return all
-        .where((c) =>
-            c.model.toLowerCase().contains(q) ||
-            c.description.toLowerCase().contains(q))
-        .toList();
+    // 搜索只匹配型号名（model），不匹配功能描述（description）。
+    return all.where((c) => c.matchesSearch(_query)).toList();
   }
 
   @override
